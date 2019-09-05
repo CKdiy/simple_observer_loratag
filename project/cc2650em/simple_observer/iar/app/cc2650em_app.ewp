@@ -1056,6 +1056,9 @@
             <name>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\board_key.h</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\ibeaconinf.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\simple_observer.c</name>
         </file>
         <file>

@@ -74,6 +74,7 @@
 
 #include "simple_observer.h"
 
+#include "ibeaconinf.h"
 /*********************************************************************
  * MACROS
  */
@@ -160,11 +161,21 @@ Char sboTaskStack[SBO_TASK_STACK_SIZE];
 
 // Number of scan results and scan result index
 static uint8 scanRes;
+static uint8 scanResult_write;
+static uint8 scanResult_read;
+static uint8 scanTimetick;
 
 // Scan result list
 static gapDevRec_t devList[DEFAULT_MAX_SCAN_RES];
+static ibeaconInf_t ibeaconInfList[DEFAULT_MAX_SCAN_RES + 1];
+static scanResult_t scanResultList[BUFFER_SCANRESULT_MAX_NUM];
 
 static Clock_Struct userProcessClock;
+
+//The UUID of the bluetooth beacon 
+//const uint8_t ibeaconUuid[6]={0x20,0x19,0x01,0x10,0x09,0x31};
+const uint8_t ibeaconUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
+//const uint8_t ibeaconUuid[6]={0xAB,0x81,0x90,0xD5,0xD1,0x1E};
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
@@ -175,7 +186,8 @@ static void SimpleBLEObserver_handleKeys(uint8_t shift, uint8_t keys);
 static void SimpleBLEObserver_processStackMsg(ICall_Hdr *pMsg);
 static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg);
 static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent);
-static void SimpleBLEObserver_addDeviceInfo(uint8 *pAddr, uint8 addrType);
+static void SimpleBLEObserver_addDeviceInfo(uint8 *pAddr, uint8 *pData,
+                                            uint8 datalen, uint8 rssi);
 
 static uint8_t SimpleBLEObserver_eventCB(gapObserverRoleEvent_t *pEvent);
 
@@ -186,6 +198,8 @@ void SimpleBLEObserver_initKeys(void);
 
 void SimpleBLEObserver_keyChangeHandler(uint8 keys);
 static void SimpleBLEObserver_userClockHandler(UArg arg);
+
+static uint8_t sort_ibeaconInf_By_Rssi(void);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -333,11 +347,11 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	if (events & SBP_OBSERVER_PERIODIC_EVT)
 	{	
 		events &= ~SBP_OBSERVER_PERIODIC_EVT;
-
+		
 		// Perform periodic application task
 		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-										DEFAULT_DISCOVERY_ACTIVE_SCAN,
-										DEFAULT_DISCOVERY_WHITE_LIST );	
+                                        DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                        DEFAULT_DISCOVERY_WHITE_LIST );		
 		
 		Board_ledCtrl(Board_LED_ON);
 	}		
@@ -446,17 +460,36 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 
     case GAP_DEVICE_INFO_EVENT:
       {
-        SimpleBLEObserver_addDeviceInfo(pEvent->deviceInfo.addr,
-                                        pEvent->deviceInfo.addrType);
+		  if(pEvent->deviceInfo.eventType != GAP_ADRPT_SCAN_RSP)
+		  {
+			  SimpleBLEObserver_addDeviceInfo(pEvent->deviceInfo.addr,
+                                              pEvent->deviceInfo.pEvtData,
+                                              pEvent->deviceInfo.dataLen,
+                                              pEvent->deviceInfo.rssi);
+		  }
       }
       break;
 
     case GAP_DEVICE_DISCOVERY_EVENT:
       {
-          // discovery complete
-          GAPObserverRole_CancelDiscovery();
+		   // discovery complete
+		   scanTimetick ++;	
+		  
+		   GAPObserverRole_CancelDiscovery();
+		  
+		   scanResultList[scanResult_write].timertick = scanTimetick;
+		   scanResultList[scanResult_write].numdevs = sort_ibeaconInf_By_Rssi();
+		   memcpy( &scanResultList[scanResult_write].bleinfbuff, ibeaconInfList, 
+					sizeof(ibeaconInf_t)*scanResultList[scanResult_write].numdevs);
+		  
+		  scanResult_write ++;
+		  if( scanResult_write >= BUFFER_SCANRESULT_MAX_NUM )
+			scanResult_write = 0;
+		  	    		  
 		  Board_ledCtrl(Board_LED_OFF);
+		  
 		  Util_startClock(&userProcessClock);
+		  
 		  scanRes = 0;
       }
       break;
@@ -489,6 +522,7 @@ static uint8_t SimpleBLEObserver_eventCB(gapObserverRoleEvent_t *pEvent)
   return TRUE;
 }
 
+
 /*********************************************************************
  * @fn      SimpleBLEObserver_addDeviceInfo
  *
@@ -496,12 +530,29 @@ static uint8_t SimpleBLEObserver_eventCB(gapObserverRoleEvent_t *pEvent)
  *
  * @return  none
  */
-static void SimpleBLEObserver_addDeviceInfo(uint8 *pAddr, uint8 addrType)
+static void SimpleBLEObserver_addDeviceInfo(uint8 *pAddr, uint8 *pData, uint8 datalen, uint8 rssi)
 {
   uint8 i;
+  uint8 minoroffset;
+  uint8 uuidoffset;
+  uint8 scannum;
+  uint8 *ptr;
 
+  if( (pAddr == NULL) || (pData == NULL) )
+	return;
+  
+  if( IBEACON_ADVDATA_LEN != datalen)
+	return;
+  
+  ptr = pData;
+  uuidoffset = IBEACON_ADVUUID_OFFSET;
+  
+  if( memcmp(&ptr[uuidoffset], ibeaconUuid, sizeof(ibeaconUuid)) != 0)
+	return;  
+  
+  scannum = scanRes;
   // If result count not at max
-  if ( scanRes < DEFAULT_MAX_SCAN_RES )
+  if ( scannum < DEFAULT_MAX_SCAN_RES )
   {
     // Check if device is already in scan results
     for ( i = 0; i < scanRes; i++ )
@@ -513,11 +564,16 @@ static void SimpleBLEObserver_addDeviceInfo(uint8 *pAddr, uint8 addrType)
     }
 
     // Add addr to scan result list
-    memcpy(devList[scanRes].addr, pAddr, B_ADDR_LEN );
-    devList[scanRes].addrType = addrType;
+    memcpy( devList[scannum].addr, pAddr, B_ADDR_LEN );
+    
+    minoroffset = IBEACON_ADVMINOR_OFFSET;
+    memcpy((void *)(&ibeaconInfList[scannum].minor[0]), 
+		   (void *)&ptr[minoroffset], sizeof(uint16));	
+	
+    ibeaconInfList[scannum].rssi = 0xFF - rssi;
 
     // Increment scan result count
-    scanRes++;
+    scanRes ++;
   }
 }
 
@@ -576,5 +632,30 @@ static uint8_t SimpleBLEObserver_enqueueMsg(uint8_t event, uint8_t state,
   return FALSE;
 }
 
+static uint8_t sort_ibeaconInf_By_Rssi(void)
+{
+  uint8_t i=0,j=0;
+  uint8 scannum;
+  
+  scannum = scanRes;
+
+  for(i=0; i<scannum - 1; i++)
+  {
+	for(j=0; j<scannum-i-1; j++)
+	{
+		if(ibeaconInfList[j].rssi > ibeaconInfList[j+1].rssi)
+		{
+			memcpy(&ibeaconInfList[scannum], &ibeaconInfList[j], sizeof(ibeaconInf_t));
+			memcpy(&ibeaconInfList[j], &ibeaconInfList[j+1], sizeof(ibeaconInf_t));
+			memcpy(&ibeaconInfList[j+1], &ibeaconInfList[scannum], sizeof(ibeaconInf_t));															
+		}												
+	}				
+  }
+  
+  if( scannum > BUFFER_IBEACONINF_NUM)
+    scannum = BUFFER_IBEACONINF_NUM;	
+  
+  return scannum;
+}
 /*********************************************************************
 *********************************************************************/
