@@ -79,13 +79,13 @@ extern const PIN_Config BoardGpioInitTable[];
 #define Board_DK_LED0                       IOID_0
 #define Board_DK_LED1                       PIN_UNASSIGNED
 #define Board_DK_LED2                       PIN_UNASSIGNED
-#define Board_DK_LED3                       IOID_2          /* P1.2  */
-#define Board_DK_LED4                       IOID_3          /* P1.4  */
+#define Board_DK_LED3                       PIN_UNASSIGNED  /* P1.2  */
+#define Board_DK_LED4                       PIN_UNASSIGNED  /* P1.4  */
 /* Button Board */
 #define Board_KEY_SELECT                    IOID_9          /* P1.14 */
 #define Board_KEY_SOS                       IOID_6          /* P1.10 */
 //#define Board_KEY_UP                        IOID_6          /* P1.10 */
-#define Board_KEY_DOWN                      IOID_4          /* P1.12 */
+#define Board_KEY_DOWN                      PIN_UNASSIGNED  /* P1.12 */
 #define Board_KEY_LEFT                      IOID_5          /* P1.6  */
 #define Board_KEY_RIGHT                     IOID_13         /* P1.8  */
 /* LCD  Board */
@@ -111,7 +111,10 @@ extern const PIN_Config BoardGpioInitTable[];
 #define Board_PWMPIN5                       PIN_UNASSIGNED
 #define Board_PWMPIN6                       PIN_UNASSIGNED
 #define Board_PWMPIN7                       PIN_UNASSIGNED
-
+/* I2C Board */
+#define Board_I2C_SCL                       IOID_4			
+#define Board_I2C_SDA                       IOID_3			
+#define Board_I2C_INT                       IOID_2
 /** ============================================================================
  *  Instance identifiers
  *  ==========================================================================*/

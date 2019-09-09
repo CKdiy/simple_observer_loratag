@@ -366,6 +366,7 @@
                     <state>$SRC_COMMON$/services/src/sdata</state>
                     <state>$CC26XXWARE$</state>
                     <state>$TI_RTOS_DRIVERS_BASE$</state>
+                    <state>$PROJ_DIR$\..\..\..\..\..\src\devdrivers</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1069,6 +1070,15 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\util.h</name>
+        </file>
+    </group>
+    <group>
+        <name>DevDrivers</name>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\mems.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\mems.h</name>
         </file>
     </group>
     <group>
