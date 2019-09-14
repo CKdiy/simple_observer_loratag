@@ -80,7 +80,7 @@ bool MemsOpen(void)
 	Mems_WriteReg(0x11, transBuf);
 	
 	//ODR=125HZ
-	transBuf = 0x01;
+	transBuf = 0x00;
 	Mems_WriteReg(0x10, transBuf);	
 	
 	//Set active_ths default:g_Rang +/-2g 
@@ -183,6 +183,8 @@ static void Board_MemsActivedCallback(PIN_Handle hPin, PIN_Id pinId)
   	{
     	// Notify the application
 		(*appMemsActiveHandler)(pinId);
+		
+		Clear_Mems_Interrupt();
 	}
 }
 

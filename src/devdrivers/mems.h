@@ -47,6 +47,21 @@ typedef enum
  * MACROS
  */
 
+typedef enum Mems_Status
+{
+	MEMS_ACTIVE = 0,
+	MEMS_SLEEP
+}Mems_Status;
+   
+typedef struct 
+{
+	uint32_t  old_tick;
+	uint32_t  new_tick;
+	uint8_t   interval;
+	uint8_t   interruptE;
+	uint8_t   status;
+}memsmgr_t;
+
 /*********************************************************************
  * FUNCTIONS
  */
