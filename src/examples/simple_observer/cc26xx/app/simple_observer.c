@@ -75,6 +75,7 @@
 #include "simple_observer.h"
 
 #include "ibeaconinf.h"
+#include "mems.h"
 /*********************************************************************
  * MACROS
  */
@@ -109,8 +110,10 @@
 #define SBO_KEY_CHANGE_EVT                    0x0001
 #define SBO_STATE_CHANGE_EVT                  0x0002
 #define SBP_OBSERVER_PERIODIC_EVT             0x0004
+#define SBO_MEMS_ACTIVE_EVT                   0x0008
 
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
+#define RCOSC_CALIBRATION_PERIOD_3s           3000
 
 /*********************************************************************
  * TYPEDEFS
@@ -165,6 +168,9 @@ static uint8 scanResult_write;
 static uint8 scanResult_read;
 static uint8 scanTimetick;
 
+//mems
+static memsmgr_t memsMgr;
+
 // Scan result list
 static gapDevRec_t devList[DEFAULT_MAX_SCAN_RES];
 static ibeaconInf_t ibeaconInfList[DEFAULT_MAX_SCAN_RES + 1];
@@ -200,6 +206,8 @@ void SimpleBLEObserver_keyChangeHandler(uint8 keys);
 static void SimpleBLEObserver_userClockHandler(UArg arg);
 
 static uint8_t sort_ibeaconInf_By_Rssi(void);
+static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
+void SimpleBLEObserver_memsActiveHandler(uint8 pins);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -266,6 +274,15 @@ void SimpleBLEObserver_init(void)
   appMsgQueue = Util_constructQueue(&appMsg);
 
   Board_initKeys(SimpleBLEObserver_keyChangeHandler);
+  
+  if( MemsOpen() )
+  {
+	 memsMgr.status = MEMS_ACTIVE;
+	 memsMgr.old_tick = Clock_getTicks();
+	 memsMgr.new_tick = memsMgr.old_tick;
+	 memsMgr.interval = 0;
+    UserProcess_MemsInterrupt_Mgr( ENABLE );  
+  }
 
   // Setup Observer Profile
   {
@@ -282,7 +299,9 @@ void SimpleBLEObserver_init(void)
   VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
 
   Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
-                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBP_OBSERVER_PERIODIC_EVT); 
+                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBP_OBSERVER_PERIODIC_EVT);
+  
+  Util_startClock(&userProcessClock);
 }
 
 /*********************************************************************
@@ -348,12 +367,52 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	{	
 		events &= ~SBP_OBSERVER_PERIODIC_EVT;
 		
-		// Perform periodic application task
-		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                        DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                        DEFAULT_DISCOVERY_WHITE_LIST );		
+		memsMgr.new_tick = Clock_getTicks();
 		
-		Board_ledCtrl(Board_LED_ON);
+		if( (  MEMS_ACTIVE == memsMgr.status ) && 
+		    ( memsMgr.new_tick - memsMgr.old_tick < NOACTIVE_TIME_OF_DURATION ) )
+		{
+		    // Perform periodic application task
+		    GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                        DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                        DEFAULT_DISCOVERY_WHITE_LIST );	
+			
+		    Util_startClock(&userProcessClock);
+		}
+		else if( ( MEMS_ACTIVE == memsMgr.status ) && 
+			     ( memsMgr.new_tick - memsMgr.old_tick >= NOACTIVE_TIME_OF_DURATION ) )
+		{
+			memsMgr.status = MEMS_SLEEP;	
+			
+			Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_3s);	
+		}
+		else if( (MEMS_SLEEP == memsMgr.status ) &&
+			     ( memsMgr.interval < 2) )
+		{
+		    if( memsMgr.new_tick - memsMgr.old_tick < ACTIVE_TIME_OF_DURATION) //3s
+			    memsMgr.interval ++; 
+			else
+			    memsMgr.interval = 0;
+			
+			if( memsMgr.interval >= 2 )
+			{
+			    memsMgr.interval = 0;
+				
+			    memsMgr.status = MEMS_ACTIVE;
+			
+			    Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);
+				
+			    memsMgr.old_tick = memsMgr.new_tick + COMPENSATOR_TICK_500ms;
+			}
+			else
+			{
+			    Util_startClock(&userProcessClock);
+			}
+		}
+		else
+		{
+			memsMgr.interval = 0;
+		}
 	}		
   }
 }
@@ -403,6 +462,9 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
     case SBO_KEY_CHANGE_EVT:
       SimpleBLEObserver_handleKeys(0, pMsg->hdr.state);
       break;
+	  
+    case SBO_MEMS_ACTIVE_EVT:
+	  memsMgr.old_tick = Clock_getTicks();
 
     default:
       // Do nothing.
@@ -485,10 +547,6 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 		  scanResult_write ++;
 		  if( scanResult_write >= BUFFER_SCANRESULT_MAX_NUM )
 			scanResult_write = 0;
-		  	    		  
-		  Board_ledCtrl(Board_LED_OFF);
-		  
-		  Util_startClock(&userProcessClock);
 		  
 		  scanRes = 0;
       }
@@ -591,6 +649,13 @@ void SimpleBLEObserver_keyChangeHandler(uint8 keys)
   SimpleBLEObserver_enqueueMsg(SBO_KEY_CHANGE_EVT, keys, NULL);
 }
 
+void SimpleBLEObserver_memsActiveHandler(uint8 pins)
+{
+  SimpleBLEObserver_enqueueMsg(SBO_MEMS_ACTIVE_EVT, pins, NULL);
+  
+  Semaphore_post(sem);
+}
+
 static void SimpleBLEObserver_userClockHandler(UArg arg)
 {
   // Store the event.
@@ -656,6 +721,30 @@ static uint8_t sort_ibeaconInf_By_Rssi(void)
     scannum = BUFFER_IBEACONINF_NUM;	
   
   return scannum;
+}
+
+static bool UserProcess_MemsInterrupt_Mgr( uint8_t status )
+{
+    bool res = FALSE;
+	
+  	if( status == DISABLE )
+	{
+		Mems_ActivePin_Disable();
+		memsMgr.interruptE = DISABLE;
+		res = TRUE;
+	}
+	else
+	{
+		res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+		if(!res)
+		{
+			HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);							
+		}
+		
+		memsMgr.interruptE = ENABLE;
+	}
+	
+    return res;
 }
 /*********************************************************************
 *********************************************************************/
