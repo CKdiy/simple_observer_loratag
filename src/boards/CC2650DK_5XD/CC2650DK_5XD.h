@@ -98,9 +98,9 @@ extern const PIN_Config BoardGpioInitTable[];
 #define Board_UART_CTS                      PIN_UNASSIGNED
 #define Board_UART_RTS                      PIN_UNASSIGNED
 /* SPI Board */
-#define Board_SPI0_MISO                     IOID_12         /* P1.20 */
-#define Board_SPI0_MOSI                     IOID_11         /* P1.18 */
-#define Board_SPI0_CLK                      IOID_10         /* P1.16 */
+#define Board_SPI0_MISO                     IOID_9         
+#define Board_SPI0_MOSI                     IOID_8         
+#define Board_SPI0_CLK                      IOID_10        /* P1.16 */
 #define Board_SPI0_CSN                      PIN_UNASSIGNED
 /* PWM outputs */
 #define Board_PWMPIN0                       Board_DK_LED3
@@ -114,7 +114,11 @@ extern const PIN_Config BoardGpioInitTable[];
 /* I2C Board */
 #define Board_I2C_SCL                       IOID_4			
 #define Board_I2C_SDA                       IOID_3			
-#define Board_I2C_INT                       IOID_2
+#define Board_I2C_INT                       IOID_2  
+/* sx1278  Board */
+#define Board_SX1278_RST                    IOID_14         /* RF1.15 */
+#define Board_SX1278_DIO0                   IOID_13         /* RF1.11 */
+#define Board_SX1278_CSN                    IOID_7 
 /** ============================================================================
  *  Instance identifiers
  *  ==========================================================================*/

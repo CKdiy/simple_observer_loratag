@@ -367,6 +367,7 @@
                     <state>$CC26XXWARE$</state>
                     <state>$TI_RTOS_DRIVERS_BASE$</state>
                     <state>$PROJ_DIR$\..\..\..\..\..\src\devdrivers</state>
+                    <state>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1074,6 +1075,30 @@
     </group>
     <group>
         <name>DevDrivers</name>
+        <group>
+            <name>sx1278</name>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278\radio.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278\sx1276_regs_fsk.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278\sx1276_regs_lora.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278\sx1278_hal.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278\sx1278_hal.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278\sx1278_lora.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278\sx1278_lora.h</name>
+            </file>
+        </group>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\mems.c</name>
         </file>
