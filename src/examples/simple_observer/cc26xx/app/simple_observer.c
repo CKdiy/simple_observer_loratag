@@ -76,6 +76,7 @@
 
 #include "ibeaconinf.h"
 #include "mems.h"
+#include "loraApp.h"
 /*********************************************************************
  * MACROS
  */
@@ -111,6 +112,7 @@
 #define SBO_STATE_CHANGE_EVT                  0x0002
 #define SBP_OBSERVER_PERIODIC_EVT             0x0004
 #define SBO_MEMS_ACTIVE_EVT                   0x0008
+#define SBO_LORA_STATUS_EVT                   0x0010
 
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
@@ -208,6 +210,7 @@ static void SimpleBLEObserver_userClockHandler(UArg arg);
 static uint8_t sort_ibeaconInf_By_Rssi(void);
 static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
 void SimpleBLEObserver_memsActiveHandler(uint8 pins);
+void SimpleBLEObserver_loraStatusHandler(uint8 pins);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -283,6 +286,8 @@ void SimpleBLEObserver_init(void)
 	 memsMgr.interval = 0;
     UserProcess_MemsInterrupt_Mgr( ENABLE );  
   }
+  
+  loraRole_StartDevice(SimpleBLEObserver_loraStatusHandler, NULL);
 
   // Setup Observer Profile
   {
@@ -655,6 +660,14 @@ void SimpleBLEObserver_memsActiveHandler(uint8 pins)
   
   Semaphore_post(sem);
 }
+
+void SimpleBLEObserver_loraStatusHandler(uint8 pins)
+{
+  SimpleBLEObserver_enqueueMsg(SBO_LORA_STATUS_EVT, pins, NULL);
+  
+  Semaphore_post(sem);
+}
+
 
 static void SimpleBLEObserver_userClockHandler(UArg arg)
 {

@@ -1169,6 +1169,12 @@
             <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\ibeaconinf.h</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\loraApp.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\loraApp.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\simple_observer.c</name>
         </file>
         <file>
