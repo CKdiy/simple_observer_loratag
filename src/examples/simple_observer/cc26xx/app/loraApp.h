@@ -27,7 +27,7 @@ extern "C"
  
 #define LORA_SADDR_LEN                      6 
 #define LORA_SEND_LEN_MAX                   64
-   
+#define Lora_SEND_CYCLE                     4 
 #define LORA_HW_STATUS_OK                  0x0  
 #define LORA_HW_STATUS_ERROR               0x1  
    

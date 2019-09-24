@@ -113,6 +113,7 @@
 #define SBP_OBSERVER_PERIODIC_EVT             0x0004
 #define SBO_MEMS_ACTIVE_EVT                   0x0008
 #define SBO_LORA_STATUS_EVT                   0x0010
+#define SBO_LORA_UP_PERIODIC_EVT              0x0020   
 
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
@@ -170,6 +171,7 @@ static uint8 scanResult_write;
 static uint8 scanResult_read;
 static uint8 scanTimetick;
 
+uint16_t loraUpclockTimeout;
 //mems
 static memsmgr_t memsMgr;
 
@@ -179,6 +181,9 @@ static ibeaconInf_t ibeaconInfList[DEFAULT_MAX_SCAN_RES + 1];
 static scanResult_t scanResultList[BUFFER_SCANRESULT_MAX_NUM];
 
 static Clock_Struct userProcessClock;
+static Clock_Struct loraUpClock;
+
+user_Devinf_t user_devinf;
 
 //The UUID of the bluetooth beacon 
 //const uint8_t ibeaconUuid[6]={0x20,0x19,0x01,0x10,0x09,0x31};
@@ -211,6 +216,8 @@ static uint8_t sort_ibeaconInf_By_Rssi(void);
 static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
 void SimpleBLEObserver_memsActiveHandler(uint8 pins);
 void SimpleBLEObserver_loraStatusHandler(uint8 pins);
+
+static bStatus_t UserProcess_LoraSend_Package(void);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -305,6 +312,9 @@ void SimpleBLEObserver_init(void)
 
   Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
                           RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBP_OBSERVER_PERIODIC_EVT);
+  
+  Util_constructClock(&loraUpClock, SimpleBLEObserver_userClockHandler,
+                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_LORA_UP_PERIODIC_EVT);
   
   Util_startClock(&userProcessClock);
 }
@@ -418,7 +428,14 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		{
 			memsMgr.interval = 0;
 		}
-	}		
+	}
+	
+	if( events & SBO_LORA_UP_PERIODIC_EVT )
+	{
+	  events &= ~SBO_LORA_UP_PERIODIC_EVT;
+	  
+	  UserProcess_LoraSend_Package();
+	}
   }
 }
 
@@ -455,6 +472,7 @@ static void SimpleBLEObserver_processStackMsg(ICall_Hdr *pMsg)
  */
 static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 {
+  uint8_t res;
   switch (pMsg->hdr.event)
   {
     case SBO_STATE_CHANGE_EVT:
@@ -470,6 +488,23 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 	  
     case SBO_MEMS_ACTIVE_EVT:
 	  memsMgr.old_tick = Clock_getTicks();
+	  break;
+	  
+    case SBO_LORA_STATUS_EVT: 
+	  loraRole_GetRFMode(&res);
+	  if( LORA_RF_MODE_TX == res )
+	  {
+		sx1278_TxDoneCallback();
+		loraRole_SetRFMode( LORA_RF_MODE_RX );
+	  }
+	  else if(LORA_RF_MODE_RX == res)
+	  {
+	  	if( loraRole_MacRecv() )
+		{
+		  loraRole_SetRFMode( LORA_RF_MODE_SLEEP );	
+		}
+	  }
+	  break;
 
     default:
       // Do nothing.
@@ -554,6 +589,14 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 			scanResult_write = 0;
 		  
 		  scanRes = 0;
+		  
+		  if( scanTimetick == Lora_SEND_CYCLE )
+		  {
+		    scanTimetick = 0;
+
+		    loraUpclockTimeout = loraRole_GetRand() * 200;
+		    Util_restartClock(&loraUpClock, loraUpclockTimeout);
+		  }
       }
       break;
 
@@ -759,5 +802,81 @@ static bool UserProcess_MemsInterrupt_Mgr( uint8_t status )
 	
     return res;
 }
+
+static bStatus_t UserProcess_LoraSend_Package(void)
+{
+  bStatus_t ret = SUCCESS;
+  
+  uint8_t  payload_len;
+  uint16_t payload_head;
+  uint8_t  read_temp;
+  uint8_t  res;
+  uint8_t  i,j,x;
+  uint8_t  *ptr,*buf;  
+  
+  read_temp = scanResult_read;
+  payload_head = 0;
+  payload_len  = 0;
+  
+  for(i=0; i<USER_UP_BEACONINF_NUM; i++)
+  {
+    if(read_temp == scanResult_write)
+      break;
+	
+    payload_head |= scanResultList[read_temp].numdevs << (i*3);
+    payload_len += (scanResultList[read_temp].numdevs * sizeof(ibeaconInf_t));
+	
+    read_temp ++;
+    if( read_temp >= BUFFER_SCANRESULT_MAX_NUM)
+      read_temp = 0;
+  }
+  
+  payload_head |= user_devinf.vbat   << 15;
+  payload_head |= user_devinf.sos    << 14;
+  payload_head |= user_devinf.acflag << 12;
+  
+  buf = (uint8_t *)ICall_malloc(payload_len + sizeof(payload_head));
+  if( buf == NULL)
+    return FAILURE;
+  
+  ptr = buf;
+  
+  *ptr++ = payload_head >> 8;
+  *ptr++ = payload_head & 0xFF;
+  
+  res = scanResult_read;
+  for(j=0; j<i; j++)
+  {
+	for(x=0; x<scanResultList[res].numdevs; x++)
+	{
+		memcpy( ptr, &scanResultList[res].bleinfbuff[x], sizeof(ibeaconInf_t));
+		
+		ptr += sizeof(ibeaconInf_t);
+	}
+	 	
+	res ++;
+	if( res >= BUFFER_SCANRESULT_MAX_NUM)
+	  res = 0;  
+  }
+  
+  loraRole_GetRFMode(&res);
+  if( LORA_RF_MODE_SLEEP == res)
+	loraRole_SetRFMode(LORA_RF_MODE_STANDBY);
+  
+  loraRole_MacSend(buf, payload_len + sizeof(payload_head));
+   
+  user_devinf.acflag ++;
+  if( user_devinf.acflag == 4)
+  {
+  	user_devinf.acflag = 0;
+  }
+  
+  scanResult_read = read_temp;
+  
+  ICall_free(buf);
+	
+  return ret;
+}
+
 /*********************************************************************
 *********************************************************************/
