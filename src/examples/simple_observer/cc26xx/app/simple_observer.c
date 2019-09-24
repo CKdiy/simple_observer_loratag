@@ -113,7 +113,8 @@
 #define SBP_OBSERVER_PERIODIC_EVT             0x0004
 #define SBO_MEMS_ACTIVE_EVT                   0x0008
 #define SBO_LORA_STATUS_EVT                   0x0010
-#define SBO_LORA_UP_PERIODIC_EVT              0x0020   
+#define SBO_LORA_UP_PERIODIC_EVT              0x0020
+#define SBO_LORA_RX_TIMEOUT_EVT               0x0040
 
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
@@ -182,6 +183,7 @@ static scanResult_t scanResultList[BUFFER_SCANRESULT_MAX_NUM];
 
 static Clock_Struct userProcessClock;
 static Clock_Struct loraUpClock;
+static Clock_Struct loraRXTimeoutClock;
 
 user_Devinf_t user_devinf;
 
@@ -316,6 +318,8 @@ void SimpleBLEObserver_init(void)
   Util_constructClock(&loraUpClock, SimpleBLEObserver_userClockHandler,
                           RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_LORA_UP_PERIODIC_EVT);
   
+  Util_constructClock(&loraRXTimeoutClock, SimpleBLEObserver_userClockHandler,
+                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_LORA_RX_TIMEOUT_EVT);
   Util_startClock(&userProcessClock);
 }
 
@@ -435,6 +439,12 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	  events &= ~SBO_LORA_UP_PERIODIC_EVT;
 	  
 	  UserProcess_LoraSend_Package();
+	}	
+	else if( events & SBO_LORA_RX_TIMEOUT_EVT )
+	{
+	  events &= ~SBO_LORA_RX_TIMEOUT_EVT;
+	  
+	  loraRole_SetRFMode( LORA_RF_MODE_SLEEP );
 	}
   }
 }
@@ -495,13 +505,24 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 	  if( LORA_RF_MODE_TX == res )
 	  {
 		sx1278_TxDoneCallback();
+		
 		loraRole_SetRFMode( LORA_RF_MODE_RX );
+		
+		Util_startClock(&loraRXTimeoutClock);
 	  }
 	  else if(LORA_RF_MODE_RX == res)
 	  {
-	  	if( loraRole_MacRecv() )
+	  	if( !loraRole_MacRecv() )
 		{
+		  Util_stopClock( &loraRXTimeoutClock );
+		  
 		  loraRole_SetRFMode( LORA_RF_MODE_SLEEP );	
+		  
+		  Board_ledCtrl( Board_LED_ON );
+		  
+		  Task_sleep(50*1000/Clock_tickPeriod);  
+		  
+		  Board_ledCtrl( Board_LED_OFF );	    
 		}
 	  }
 	  break;
