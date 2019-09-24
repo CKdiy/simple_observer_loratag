@@ -290,5 +290,22 @@ static void loraRole_SaddrGet( saddr_t *mac_addr)
 	*mac_addr++ = BREAK_UINT32(mac0, 0); 
 }
 
+static uint32_t s_rand;
+uint8_t loraRole_GetRand(void)
+{
+    int res;
+	uint8_t seed;
+	
+	s_rand += dev_Saddr[LORA_SADDR_LEN - 1];
+	s_rand += Clock_getTicks();
+	
+	srand(s_rand);
+	res = rand() + 1;	
+	s_rand = ((res << 8) | (res >> 8)) >> 16;
+	seed =  s_rand % 20; 
+	  
+    return seed;
+}
+
 /*********************************************************************
 *********************************************************************/
