@@ -218,8 +218,9 @@
                     <state>HEAPMGR_SIZE=0</state>
                     <state>ICALL_MAX_NUM_ENTITIES=6</state>
                     <state>ICALL_MAX_NUM_TASKS=3</state>
-                    <state>xPOWER_SAVING</state>
+                    <state>POWER_SAVING</state>
                     <state>USE_ICALL</state>
+                    <state>USE_RCOSC</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -1250,7 +1251,7 @@
             <name>$PROJ_DIR$\..\..\..\..\..\src\target\board.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\config\ccfg_app_ble.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\rcosc\ccfg_app_ble_rcosc.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\main.c</name>

@@ -234,6 +234,61 @@ static const gapObserverRoleCB_t simpleBLERoleCB =
  * PUBLIC FUNCTIONS
  */
 
+#ifdef USE_RCOSC
+// Power Notify Object for wake-up callbacks
+Power_NotifyObj injectCalibrationPowerNotifyObj;
+
+/*********************************************************************
+ * @fn      rcosc_injectCalibrationPostNotify
+ *
+ * @brief   Callback for Power module state change events.
+ *
+ * @param   eventType - The state change.
+ * @param   clientArg - Not used.
+ *
+ * @return  Power_NOTIFYDONE
+ */
+static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
+                                                 uint32_t *eventArg,
+                                                 uint32_t *clientArg)
+{
+  // If clock is active at time of wake up,
+  if (!Util_isActive(&userProcessClock))
+  {
+    // Stop injection of calibration - the wakeup has automatically done this.
+    Util_startClock(&userProcessClock);
+  }
+
+  return Power_NOTIFYDONE;
+}
+
+/*********************************************************************
+ * @fn      RCOSC_enableCalibration
+ *
+ * @brief   enable calibration.  calibration timer will start immediately.
+ *
+ * @param   none
+ *
+ * @return  none
+ */
+void RCOSC_enableCalibration(void)
+{
+  uint8_t isEnabled = FALSE;
+  
+  if (!isEnabled)
+  {
+    isEnabled = TRUE;
+
+    // Set device's Sleep Clock Accuracy
+    HCI_EXT_SetSCACmd(1000);
+
+    // Receive callback when device wakes up from Standby Mode.
+    Power_registerNotify(&injectCalibrationPowerNotifyObj, PowerCC26XX_AWAKE_STANDBY,
+                         (Power_NotifyFxn)rcosc_injectCalibrationPostNotify, NULL);
+  }
+} 
+#endif // USE_RCOSC 
+
 /*********************************************************************
  * @fn      SimpleBLEObserver_createTask
  *
@@ -293,7 +348,8 @@ void SimpleBLEObserver_init(void)
 	 memsMgr.old_tick = Clock_getTicks();
 	 memsMgr.new_tick = memsMgr.old_tick;
 	 memsMgr.interval = 0;
-    UserProcess_MemsInterrupt_Mgr( ENABLE );  
+     UserProcess_MemsInterrupt_Mgr( ENABLE ); 
+	 MemsLowPwMgr();
   }
   
   loraRole_StartDevice(SimpleBLEObserver_loraStatusHandler, NULL);
@@ -311,7 +367,11 @@ void SimpleBLEObserver_init(void)
 
   // Start the Device
   VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
-
+  
+#ifdef USE_RCOSC
+	RCOSC_enableCalibration();
+#endif // USE_RCOSC 
+	
   Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
                           RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBP_OBSERVER_PERIODIC_EVT);
   

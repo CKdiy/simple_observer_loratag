@@ -1358,7 +1358,7 @@
             <name>$PROJ_DIR$\..\..\..\..\..\src\target\board.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\config\ccfg_app_ble.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\rcosc\ccfg_app_ble_rcosc.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\main.c</name>
