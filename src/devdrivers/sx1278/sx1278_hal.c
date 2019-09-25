@@ -32,7 +32,7 @@ PIN_Config sx1278CsnPinTable[] ={
 };
 
 PIN_Config sx1278RFStatusPinTable[] = {
- 	Board_SX1278_DIO0  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN   | PIN_PULLUP, // sx1278 RF tx/rx status notification pin	 
+ 	Board_SX1278_DIO0  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN   | PIN_PULLDOWN, // sx1278 RF tx/rx status notification pin	 
 	PIN_TERMINATE
 };
 

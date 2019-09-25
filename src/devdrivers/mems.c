@@ -32,7 +32,7 @@ PIN_Config memsSDAPinTable[] = {
 };
 
 PIN_Config memsActivePinTable[]={
-   Board_I2C_INT    | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN   |  PIN_PULLUP,
+   Board_I2C_INT    | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN   |  PIN_PULLDOWN,
    PIN_TERMINATE                                                                // Terminate list
 };
 
