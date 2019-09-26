@@ -1107,6 +1107,12 @@
             </file>
         </group>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\auxadc.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\auxadc.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\mems.c</name>
         </file>
         <file>
