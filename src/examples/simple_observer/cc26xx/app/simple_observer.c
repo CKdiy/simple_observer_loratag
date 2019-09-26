@@ -79,6 +79,8 @@
 #include "loraApp.h"
 
 #include "auxadc.h"
+
+#include "release.h"
 /*********************************************************************
  * MACROS
  */
