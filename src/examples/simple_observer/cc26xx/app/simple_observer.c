@@ -81,6 +81,10 @@
 #include "auxadc.h"
 
 #include "release.h"
+
+#ifdef IWDG_ENABLE
+#include "wdt.h"
+#endif
 /*********************************************************************
  * MACROS
  */
@@ -347,7 +351,11 @@ void SimpleBLEObserver_init(void)
 
   // Create an RTOS queue for message from profile to be sent to app.
   appMsgQueue = Util_constructQueue(&appMsg);
-
+  
+#ifdef IWDG_ENABLE
+  wdtInitFxn();
+#endif
+  
   Board_initKeys(SimpleBLEObserver_keyChangeHandler);
   
   if( MemsOpen() )
@@ -510,6 +518,10 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			memsMgr.interval = 0;
 		}
 	}
+
+#ifdef IWDG_ENABLE 
+	wdtClear();
+#endif
 	
 	if( events & SBO_LORA_UP_PERIODIC_EVT )
 	{

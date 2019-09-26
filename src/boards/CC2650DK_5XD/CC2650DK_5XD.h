@@ -148,7 +148,7 @@ extern const PIN_Config BoardGpioInitTable[];
 #define Board_PWM7                  CC2650DK_5XD_PWM7
 /* Generic TRNG instance identiifer */
 #define Board_TRNG                  CC2650DK_5XD_TRNG0
-
+#define Board_WDG0                  CC2650_WATCHDOG0
 /** ============================================================================
  *  Number of peripherals and their names
  *  ==========================================================================*/
@@ -245,6 +245,14 @@ typedef enum CC2650DK_5XD_PWM
     CC2650DK_5XD_PWMCOUNT
 } CC2650DK_5XD_PWM;
 
+/*!
+*  @def    CC2650_WatchdogName
+*  @brief  Enum of Watchdogs on the CC2650 dev board
+*/
+typedef enum CC2650_WatchdogName {
+	CC2650_WATCHDOG0 = 0,
+	CC2650_WATCHDOGCOUNT
+} CC2650_WatchdogName;
 
 #ifdef __cplusplus
 }
