@@ -225,6 +225,7 @@ void SimpleBLEObserver_memsActiveHandler(uint8 pins);
 void SimpleBLEObserver_loraStatusHandler(uint8 pins);
 static void UserProcess_Vbat_Check(void);
 static bStatus_t UserProcess_LoraSend_Package(void);
+static void led_Flash(void);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -458,12 +459,19 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		if( (  MEMS_ACTIVE == memsMgr.status ) && 
 		    ( memsMgr.new_tick - memsMgr.old_tick < NOACTIVE_TIME_OF_DURATION ) )
 		{
-		    // Perform periodic application task
-		    GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                        DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                        DEFAULT_DISCOVERY_WHITE_LIST );	
+		    if( VBAT_LOW != user_vbat )
+			{
+		  		// Perform periodic application task
+				GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                                DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                                DEFAULT_DISCOVERY_WHITE_LIST );	
 			
-		    Util_startClock(&userProcessClock);
+				Util_startClock(&userProcessClock);
+			}
+			else
+			{
+			    led_Flash();
+			}
 		}
 		else if( ( MEMS_ACTIVE == memsMgr.status ) && 
 			     ( memsMgr.new_tick - memsMgr.old_tick >= NOACTIVE_TIME_OF_DURATION ) )
@@ -594,11 +602,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 		  
 		  loraRole_SetRFMode( LORA_RF_MODE_SLEEP );	
 		  
-		  Board_ledCtrl( Board_LED_ON );
-		  
-		  Task_sleep(50*1000/Clock_tickPeriod);  
-		  
-		  Board_ledCtrl( Board_LED_OFF );	    
+		  led_Flash();
 		}
 	  }
 	  break;
@@ -994,6 +998,16 @@ static void UserProcess_Vbat_Check(void)
   
   if( user_vbat == VBAT_ALARM)
 	user_devinf.vbat = 1;
+}
+
+//Can only be invoked after  Global_interrupt enable
+static void led_Flash(void)
+{
+  Board_ledCtrl( Board_LED_ON );
+		  
+  Task_sleep(100*1000/Clock_tickPeriod);  
+		  
+  Board_ledCtrl( Board_LED_OFF );
 }
 
 /*********************************************************************
