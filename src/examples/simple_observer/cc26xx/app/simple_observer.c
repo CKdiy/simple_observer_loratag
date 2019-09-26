@@ -77,6 +77,8 @@
 #include "ibeaconinf.h"
 #include "mems.h"
 #include "loraApp.h"
+
+#include "auxadc.h"
 /*********************************************************************
  * MACROS
  */
@@ -189,7 +191,7 @@ static Clock_Struct loraRXTimeoutClock;
 static Clock_Struct sosClearTimeoutClock;
 
 user_Devinf_t user_devinf;
-
+vbat_status_t user_vbat;
 //The UUID of the bluetooth beacon 
 //const uint8_t ibeaconUuid[6]={0x20,0x19,0x01,0x10,0x09,0x31};
 const uint8_t ibeaconUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
@@ -221,7 +223,7 @@ static uint8_t sort_ibeaconInf_By_Rssi(void);
 static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
 void SimpleBLEObserver_memsActiveHandler(uint8 pins);
 void SimpleBLEObserver_loraStatusHandler(uint8 pins);
-
+static void UserProcess_Vbat_Check(void);
 static bStatus_t UserProcess_LoraSend_Package(void);
 /*********************************************************************
  * PROFILE CALLBACKS
@@ -503,7 +505,10 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	{
 	  events &= ~SBO_LORA_UP_PERIODIC_EVT;
 	  
-	  UserProcess_LoraSend_Package();
+	  UserProcess_Vbat_Check();
+	  
+	  if( user_vbat != VBAT_LOW )	  
+	    UserProcess_LoraSend_Package();
 	}	
 	else if( events & SBO_LORA_RX_TIMEOUT_EVT )
 	{
@@ -981,6 +986,14 @@ static bStatus_t UserProcess_LoraSend_Package(void)
   ICall_free(buf);
 	
   return ret;
+}
+
+static void UserProcess_Vbat_Check(void)
+{
+  user_vbat = adc_OneShot_Read();
+  
+  if( user_vbat == VBAT_ALARM)
+	user_devinf.vbat = 1;
 }
 
 /*********************************************************************
