@@ -115,9 +115,11 @@
 #define SBO_LORA_STATUS_EVT                   0x0010
 #define SBO_LORA_UP_PERIODIC_EVT              0x0020
 #define SBO_LORA_RX_TIMEOUT_EVT               0x0040
+#define SBO_SOS_CLEAR_TIMEOUT_EVT             0x0080   
 
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
+#define RCOSC_SOS_ALARM_PERIOD_16s            16000
 
 /*********************************************************************
  * TYPEDEFS
@@ -184,6 +186,7 @@ static scanResult_t scanResultList[BUFFER_SCANRESULT_MAX_NUM];
 static Clock_Struct userProcessClock;
 static Clock_Struct loraUpClock;
 static Clock_Struct loraRXTimeoutClock;
+static Clock_Struct sosClearTimeoutClock;
 
 user_Devinf_t user_devinf;
 
@@ -380,6 +383,8 @@ void SimpleBLEObserver_init(void)
   
   Util_constructClock(&loraRXTimeoutClock, SimpleBLEObserver_userClockHandler,
                           RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_LORA_RX_TIMEOUT_EVT);
+  Util_constructClock(&sosClearTimeoutClock, SimpleBLEObserver_userClockHandler,
+                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_SOS_CLEAR_TIMEOUT_EVT);  
   Util_startClock(&userProcessClock);
 }
 
@@ -506,6 +511,12 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	  
 	  loraRole_SetRFMode( LORA_RF_MODE_SLEEP );
 	}
+	else if( events & SBO_SOS_CLEAR_TIMEOUT_EVT )
+	{
+	  events &= ~SBO_SOS_CLEAR_TIMEOUT_EVT;
+	  
+	  user_devinf.sos = 0;
+	}
   }
 }
 
@@ -618,6 +629,17 @@ static void SimpleBLEObserver_handleKeys(uint8 shift, uint8 keys)
   {
     return;
   }
+  
+  if(keys & KEY_SOS)
+  {
+	user_devinf.sos = 1;
+	
+	memsMgr.interval ++;
+	
+	memsMgr.old_tick = Clock_getTicks();
+	
+	Util_restartClock(&sosClearTimeoutClock, RCOSC_SOS_ALARM_PERIOD_16s);
+  }  
 }
 
 /*********************************************************************
@@ -776,6 +798,8 @@ static void SimpleBLEObserver_addDeviceInfo(uint8 *pAddr, uint8 *pData, uint8 da
 void SimpleBLEObserver_keyChangeHandler(uint8 keys)
 {
   SimpleBLEObserver_enqueueMsg(SBO_KEY_CHANGE_EVT, keys, NULL);
+  
+  Semaphore_post(sem);
 }
 
 void SimpleBLEObserver_memsActiveHandler(uint8 pins)
