@@ -371,6 +371,7 @@
                     <state>$PROJ_DIR$\..\..\..\..\..\src\devdrivers</state>
                     <state>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278</state>
                     <state>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\watchdog</state>
+                    <state>$PROJ_DIR$\..\..\..\..\..\src\common</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1083,6 +1084,12 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\util.h</name>
+        </file>
+    </group>
+    <group>
+        <name>Common</name>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\common\delay.c</name>
         </file>
     </group>
     <group>

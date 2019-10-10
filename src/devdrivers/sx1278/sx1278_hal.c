@@ -16,7 +16,7 @@
 #include <ti/drivers/spi/SPICC26XXDMA.h>
 #include "Board.h"
 #include "sx1278_hal.h"
-
+#include "delay.h"
 /* defines */
 #define SX1278BOARD_SPI     Board_SPI0
 
@@ -148,7 +148,7 @@ void sx1278_Pin_OutLowPower(void)
 	sx1278CsnPinTable[0] = Board_SX1278_CSN | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_HIGH  | PIN_PUSHPULL;
 	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
 	
-	Task_sleep(10*1000/Clock_tickPeriod);
+	delayMs(10);
 }
 
 bool sx1278_StatusPin_Enable(LoraRFStatusCB_t loraRFStatusCB)
@@ -226,11 +226,11 @@ bool sx1278_Reset(void)
 	
 	PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 0);
 	
-	Task_sleep(1*1000/Clock_tickPeriod);  //Wait 1 ms
+	delayMs(1);  //Wait 1 ms
 	
 	PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 1);
 	
-	Task_sleep(6*1000/Clock_tickPeriod);  //Wait 6 ms
+	delayMs(6);  //Wait 6 ms
 	
 	return TRUE;
 }

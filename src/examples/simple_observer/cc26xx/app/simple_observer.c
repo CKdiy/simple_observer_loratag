@@ -79,7 +79,7 @@
 #include "loraApp.h"
 
 #include "auxadc.h"
-
+#include "delay.h"
 #include "release.h"
 
 #ifdef IWDG_ENABLE
@@ -1019,7 +1019,7 @@ static void led_Flash(void)
 {
   Board_ledCtrl( Board_LED_ON );
 		  
-  Task_sleep(100*1000/Clock_tickPeriod);  
+  delayMs(50);
 		  
   Board_ledCtrl( Board_LED_OFF );
 }

@@ -1191,6 +1191,12 @@
         </file>
     </group>
     <group>
+        <name>Common</name>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\common\delay.c</name>
+        </file>
+    </group>
+    <group>
         <name>DevDrivers</name>
         <group>
             <name>sx1278</name>
