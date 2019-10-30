@@ -1238,6 +1238,9 @@
             <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\mems.h</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\snv.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\wdt.c</name>
         </file>
         <file>

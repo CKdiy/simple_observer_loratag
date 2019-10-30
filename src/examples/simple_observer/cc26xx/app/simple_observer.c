@@ -77,6 +77,7 @@
 #include "ibeaconinf.h"
 #include "mems.h"
 #include "loraApp.h"
+#include "snv.h"
 
 #include "auxadc.h"
 #include "delay.h"
@@ -362,6 +363,8 @@ void SimpleBLEObserver_init(void)
   
   Board_initKeys(SimpleBLEObserver_keyChangeHandler);
   
+  Nvram_Init();
+	
   if( MemsOpen() )
   {
 	 memsMgr.status = MEMS_ACTIVE;
