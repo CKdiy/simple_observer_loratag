@@ -1193,6 +1193,9 @@
     <group>
         <name>Common</name>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\common\crc.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\common\delay.c</name>
         </file>
     </group>
