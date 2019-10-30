@@ -123,11 +123,14 @@
 #define SBO_LORA_STATUS_EVT                   0x0010
 #define SBO_LORA_UP_PERIODIC_EVT              0x0020
 #define SBO_LORA_RX_TIMEOUT_EVT               0x0040
-#define SBO_SOS_CLEAR_TIMEOUT_EVT             0x0080   
+#define SBO_SOS_CLEAR_TIMEOUT_EVT             0x0080  
+#define SBO_LORAUP_SLEEPMODE_PERIODIC_EVT     0x0100
+
 
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_SOS_ALARM_PERIOD_16s            16000
+#define RCOSC_LORAUP_SLEEPMODE_PERIOD_30min   1800000
 
 /*********************************************************************
  * TYPEDEFS
@@ -195,6 +198,7 @@ static Clock_Struct userProcessClock;
 static Clock_Struct loraUpClock;
 static Clock_Struct loraRXTimeoutClock;
 static Clock_Struct sosClearTimeoutClock;
+static Clock_Struct loraUpClock_in_sleepmode;
 
 user_Devinf_t user_devinf;
 vbat_status_t user_vbat;
@@ -398,6 +402,8 @@ void SimpleBLEObserver_init(void)
                           RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_LORA_RX_TIMEOUT_EVT);
   Util_constructClock(&sosClearTimeoutClock, SimpleBLEObserver_userClockHandler,
                           RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_SOS_CLEAR_TIMEOUT_EVT);  
+  Util_constructClock(&loraUpClock_in_sleepmode, SimpleBLEObserver_userClockHandler,
+                          RCOSC_LORAUP_SLEEPMODE_PERIOD_30min, 0, false, SBO_LORAUP_SLEEPMODE_PERIODIC_EVT);  
   Util_startClock(&userProcessClock);
 }
 
@@ -462,12 +468,15 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	
 	if (events & SBP_OBSERVER_PERIODIC_EVT)
 	{	
+		uint32_t tick_differ = 0;
+		  
 		events &= ~SBP_OBSERVER_PERIODIC_EVT;
 		
 		memsMgr.new_tick = Clock_getTicks();
 		
-		if( (  MEMS_ACTIVE == memsMgr.status ) && 
-		    ( memsMgr.new_tick - memsMgr.old_tick < NOACTIVE_TIME_OF_DURATION ) )
+		tick_differ = memsMgr.new_tick - memsMgr.old_tick;
+		
+		if( (  MEMS_ACTIVE == memsMgr.status ) && ( tick_differ < NOACTIVE_TIME_OF_DURATION ) ) 
 		{
 		    if( VBAT_LOW != user_vbat )
 			{
@@ -483,17 +492,17 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			    led_Flash();
 			}
 		}
-		else if( ( MEMS_ACTIVE == memsMgr.status ) && 
-			     ( memsMgr.new_tick - memsMgr.old_tick >= NOACTIVE_TIME_OF_DURATION ) )
+		else if( ( MEMS_ACTIVE == memsMgr.status ) && ( tick_differ >= NOACTIVE_TIME_OF_DURATION ))
 		{
 			memsMgr.status = MEMS_SLEEP;	
 			
 			Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_3s);	
+			
+			Util_startClock(&loraUpClock_in_sleepmode);
 		}
-		else if( (MEMS_SLEEP == memsMgr.status ) &&
-			     ( memsMgr.interval < 2) )
-		{
-		    if( memsMgr.new_tick - memsMgr.old_tick < ACTIVE_TIME_OF_DURATION) //3s
+		else if( (MEMS_SLEEP == memsMgr.status ) && ( memsMgr.interval < 2) )
+		{	  
+			if( tick_differ < ACTIVE_TIME_OF_DURATION) //3s
 			    memsMgr.interval ++; 
 			else
 			    memsMgr.interval = 0;
@@ -505,6 +514,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			    memsMgr.status = MEMS_ACTIVE;
 			
 			    Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);
+				
+			    if( Util_isActive( &loraUpClock_in_sleepmode ) )
+			        Util_stopClock(&loraUpClock_in_sleepmode);
 				
 			    memsMgr.old_tick = memsMgr.new_tick + COMPENSATOR_TICK_500ms;
 			}
@@ -543,6 +555,18 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	  events &= ~SBO_SOS_CLEAR_TIMEOUT_EVT;
 	  
 	  user_devinf.sos = 0;
+	}
+	else if( events & SBO_LORAUP_SLEEPMODE_PERIODIC_EVT )
+	{
+	  events &= ~SBO_LORAUP_SLEEPMODE_PERIODIC_EVT;
+	  
+	  GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                      DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                      DEFAULT_DISCOVERY_WHITE_LIST );
+	  
+	  scanTimetick = Lora_SEND_CYCLE - 1;
+	  
+	  Util_startClock(&loraUpClock_in_sleepmode);
 	}
   }
 }
