@@ -186,7 +186,10 @@ static uint8 scanResult_write;
 static uint8 scanResult_read;
 static uint8 scanTimetick;
 
+static uint8_t loraChannel_ID;
+static uint8_t atFlg;
 uint16_t loraUpclockTimeout;
+uint16_t bleScanTiming;
 //mems
 static memsmgr_t memsMgr;
 
@@ -237,6 +240,7 @@ void SimpleBLEObserver_loraStatusHandler(uint8 pins);
 static void UserProcess_Vbat_Check(void);
 static bStatus_t UserProcess_LoraSend_Package(void);
 static void led_Flash(void);
+int userInf_Get( uint8_t* userbuf);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -343,6 +347,7 @@ void SimpleBLEObserver_createTask(void)
  */
 void SimpleBLEObserver_init(void)
 {
+  LoRaSettings_t *ptr = NULL;
 	// ******************************************************************
   // N0 STACK API CALLS CAN OCCUR BEFORE THIS CALL TO ICall_registerApp
   // ******************************************************************
@@ -375,7 +380,17 @@ void SimpleBLEObserver_init(void)
 	 MemsLowPwMgr();
   }
   
-  loraRole_StartDevice(SimpleBLEObserver_loraStatusHandler, NULL);
+  //Get important system parameters
+  {
+  	ptr = (LoRaSettings_t *)ICall_malloc(sizeof(LoRaSettings_t));
+	
+  	userInf_Get((uint8_t *)ptr);
+	
+  	loraRole_StartDevice(SimpleBLEObserver_loraStatusHandler, (uint8_t *)ptr);
+  
+  	if( ptr != NULL)
+  		ICall_free(ptr);
+  }
 
   // Setup Observer Profile
   {
@@ -385,8 +400,8 @@ void SimpleBLEObserver_init(void)
   }
 
   // Setup GAP
-  GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION);
-  GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION);
+  GAP_SetParamValue(TGAP_GEN_DISC_SCAN, bleScanTiming);
+  GAP_SetParamValue(TGAP_LIM_DISC_SCAN, bleScanTiming);
 
   // Start the Device
   VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
@@ -1049,6 +1064,76 @@ static void led_Flash(void)
   delayMs(50);
 		  
   Board_ledCtrl( Board_LED_OFF );
+}
+
+int userInf_Get( uint8_t* userbuf)
+{
+	uint8_t res = 0; 
+	
+	uint8_t *ptr = (uint8_t *)ICall_malloc(USER_INF_BLOCK_SIZE);
+	
+	if( ptr == NULL)		  
+	  return -1;	
+	
+	if( Nvram_ReadNv_Inf( USER_NVID_DEVINF_START, ptr) == 0 )
+	{	
+	    if( userbuf != NULL )
+		{
+		  /******************* LORA Para ***************/
+		  if(((lora_Para_N *)ptr)->bit_t.power == 1 )
+		  {
+			  ((LoRaSettings_t *)userbuf)->Power = 20;
+		  }
+		  else
+		  {
+			  ((LoRaSettings_t *)userbuf)->Power = 18;
+		  }
+
+		  ((LoRaSettings_t *)userbuf)->Coderate = ((lora_Para_N *)ptr)->bit_t.rate;
+
+		  loraChannel_ID = ((lora_Para_N *)ptr)->bit_t.channel;
+		  if( loraChannel_ID > 9)
+			  loraChannel_ID = 0;	
+		  
+		  ((LoRaSettings_t *)userbuf)->Channel = 434000000;    //test      
+			  
+		  /* default lora para */
+		  ((LoRaSettings_t *)userbuf)->Bandwidth             = 7;
+		  ((LoRaSettings_t *)userbuf)->Sf                    = 8;
+		  ((LoRaSettings_t *)userbuf)->PreambleLen           = 8;
+		  ((LoRaSettings_t *)userbuf)->LowDatarateOptimize   = FALSE;
+		  ((LoRaSettings_t *)userbuf)->FixLen                = 0;
+		  ((LoRaSettings_t *)userbuf)->PayloadLen            = 64;
+		  ((LoRaSettings_t *)userbuf)->CrcOn                 = TRUE;
+		  ((LoRaSettings_t *)userbuf)->FreqHopOn             = FALSE;
+		  ((LoRaSettings_t *)userbuf)->HopPeriod             = 0;
+		  ((LoRaSettings_t *)userbuf)->IqInverted            = TRUE;
+		  ((LoRaSettings_t *)userbuf)->RxContinuous          = TRUE;
+		  /******************* END LORA Para ***********/
+		}										
+		/*********************** BLE Para ************/
+		res = *(ptr + sizeof(lora_Para_N));
+		if(( res > 0 ) && ( res < 10 )) //100ms ~ 900ms
+		{
+			bleScanTiming = 100 * res;
+		}
+		else
+		{
+			bleScanTiming = 500; //ms
+		}
+		/*******************END BLE Para *************/
+		
+		atFlg = *(ptr + sizeof(lora_Para_N) + sizeof(uint8_t));
+	}
+	else
+	{
+	    ICall_free(ptr);
+		return -1;
+	}
+	
+	ICall_free(ptr);
+	
+	return 0;
 }
 
 /*********************************************************************
