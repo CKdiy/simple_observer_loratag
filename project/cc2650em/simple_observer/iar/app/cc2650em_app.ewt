@@ -1232,6 +1232,9 @@
             <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\auxadc.h</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\hal_uart.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\mems.c</name>
         </file>
         <file>

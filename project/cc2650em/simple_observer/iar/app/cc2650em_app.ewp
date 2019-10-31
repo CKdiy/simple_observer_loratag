@@ -222,6 +222,7 @@
                     <state>USE_ICALL</state>
                     <state>USE_RCOSC</state>
                     <state>IWDG_ENABLE</state>
+                    <state>xDEMO</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -1121,6 +1122,9 @@
                 <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\sx1278\sx1278_lora.h</name>
             </file>
         </group>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\appuart.c</name>
+        </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\devdrivers\auxadc.c</name>
         </file>
