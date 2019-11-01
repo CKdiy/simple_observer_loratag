@@ -86,6 +86,11 @@
 #ifdef IWDG_ENABLE
 #include "wdt.h"
 #endif
+ 
+#ifndef DEMO
+#include "appuart.h"
+#include <ti/drivers/UART.h>
+#endif
 /*********************************************************************
  * MACROS
  */
@@ -113,7 +118,7 @@
 #define SBO_TASK_PRIORITY                     1
 
 #ifndef SBO_TASK_STACK_SIZE
-#define SBO_TASK_STACK_SIZE                   660
+#define SBO_TASK_STACK_SIZE                   800
 #endif
 
 // Internal Events for RTOS application
@@ -204,6 +209,11 @@ static Clock_Struct loraRXTimeoutClock;
 static Clock_Struct sosClearTimeoutClock;
 static Clock_Struct loraUpClock_in_sleepmode;
 
+#ifndef DEMO
+volatile uint8_t rx_buff_header,rx_buff_tailor;
+static uint8_t user_RxBuff[RX_BUFF_SIZE];
+#endif
+
 user_Devinf_t user_devinf;
 vbat_status_t user_vbat;
 //The UUID of the bluetooth beacon 
@@ -241,6 +251,11 @@ static void UserProcess_Vbat_Check(void);
 static bStatus_t UserProcess_LoraSend_Package(void);
 static void led_Flash(void);
 int userInf_Get( uint8_t* userbuf);
+
+#ifndef DEMO
+void uart0_ReciveCallback(UART_Handle handle, void *buf, size_t count);
+static void SimpleBLEPeripheral_uart0Task(void);
+#endif
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -366,32 +381,49 @@ void SimpleBLEObserver_init(void)
   wdtInitFxn();
 #endif
   
-  Board_initKeys(SimpleBLEObserver_keyChangeHandler);
-  
   Nvram_Init();
 	
-  if( MemsOpen() )
-  {
-	 memsMgr.status = MEMS_ACTIVE;
-	 memsMgr.old_tick = Clock_getTicks();
-	 memsMgr.new_tick = memsMgr.old_tick;
-	 memsMgr.interval = 0;
-     UserProcess_MemsInterrupt_Mgr( ENABLE ); 
-	 MemsLowPwMgr();
-  }
-  
   //Get important system parameters
   {
   	ptr = (LoRaSettings_t *)ICall_malloc(sizeof(LoRaSettings_t));
 	
   	userInf_Get((uint8_t *)ptr);
 	
+#ifdef DEMO          //@1-readme  
+  	Power_releaseConstraint(PowerCC26XX_SB_DISALLOW);
+  	Power_releaseConstraint(PowerCC26XX_IDLE_PD_DISALLOW);  
+#else
+  	if( atFlg != USER_INF_SETFLG_VALUE )
+	{
+	    rx_buff_header = 0;   
+	    rx_buff_tailor = 0;	  
+	    Open_uart0( uart0_ReciveCallback );
+	}
+  	else
+  	{
+	    Power_releaseConstraint(PowerCC26XX_SB_DISALLOW);
+	    Power_releaseConstraint(PowerCC26XX_IDLE_PD_DISALLOW);     
+  	}
+#endif	
+	
+	Board_initKeys(SimpleBLEObserver_keyChangeHandler);
+	
   	loraRole_StartDevice(SimpleBLEObserver_loraStatusHandler, (uint8_t *)ptr);
   
   	if( ptr != NULL)
   		ICall_free(ptr);
   }
-
+  
+  if( MemsOpen() )
+  {
+	 memsMgr.status = MEMS_ACTIVE;
+	 memsMgr.old_tick = Clock_getTicks();
+	 memsMgr.new_tick = memsMgr.old_tick;
+	 memsMgr.interval = 0;
+	 UserProcess_MemsInterrupt_Mgr( ENABLE ); 
+	 MemsLowPwMgr();
+  }
+  
   // Setup Observer Profile
   {
     uint8 scanRes = DEFAULT_MAX_SCAN_RES;
@@ -552,6 +584,11 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 #ifdef IWDG_ENABLE 
 	wdtClear();
 #endif
+	
+#ifndef DEMO
+	if( atFlg != USER_INF_SETFLG_VALUE )
+		SimpleBLEPeripheral_uart0Task();	
+#endif	
 	
 	if( events & SBO_LORA_UP_PERIODIC_EVT )
 	{
@@ -1135,6 +1172,157 @@ int userInf_Get( uint8_t* userbuf)
 	
 	return 0;
 }
+
+#ifndef DEMO
+/*********************************************************************
+ * @fn      SimpleBLEPeripheral_uart0Task
+ *
+ * @brief   Uart0 data analysis.
+ *
+ * @param   ...
+ *
+ * @return  none
+ */
+static void SimpleBLEPeripheral_uart0Task(void)
+{
+	uint8_t heard;
+	uint8_t length;
+	uint8_t restart;
+	uint8_t res;
+	uint8_t datebuf[DEFAULT_UART_AT_CMD_LEN];
+	uint8_t writebuff[DEFAULT_UART_AT_CMD_LEN];
+	
+	uint8_t *ptr = writebuff;
+	
+	restart = FALSE;
+	heard = rx_buff_header;
+	if( rx_buff_tailor < heard )
+	{
+	    length = heard - rx_buff_tailor;
+		
+		if( length <= DEFAULT_UART_AT_CMD_LEN)
+			memcpy( datebuf, (void *)&user_RxBuff[rx_buff_tailor], length );
+		else
+		{
+			rx_buff_tailor = heard;
+			return;		
+		}
+	}
+	else if( rx_buff_tailor > heard)
+	{
+	    length = RX_BUFF_SIZE - rx_buff_tailor + heard;
+		
+		if(length <= DEFAULT_UART_AT_CMD_LEN)
+		{
+		    res =  RX_BUFF_SIZE - rx_buff_tailor;
+			memcpy( datebuf, (void *)&user_RxBuff[rx_buff_tailor], res );
+			memcpy( &datebuf[RX_BUFF_SIZE - rx_buff_tailor], (void *)user_RxBuff,  heard );
+		}
+		else
+		{
+			rx_buff_tailor = heard;
+			return;
+		}
+	}
+	else
+	  return;	
+	
+	if( DEFAULT_UART_AT_TEST_LEN == length )
+	{
+		if( strCompara( datebuf, "AT\r\n", 4 ) )
+		{
+			Uart0_Write("OK\r\n", 4);	
+		}	
+	}
+	else if( DEFAULT_UART_AT_MAC_LEN == length )
+	{
+		if( strCompara( datebuf, "AT+MAC\r\n", 8 ) )
+		{
+		    loraRole_SaddrGet(writebuff);
+			Uart0_Write(writebuff, 6);	
+		}				
+	}
+	else if( DEFAULT_UART_AT_CMD_LEN == length )
+	{
+		if( datebuf[0] == 0xfe )
+		{
+		    memset(writebuff, 0, DEFAULT_UART_AT_CMD_LEN);
+			//power
+			if( datebuf[1] == 20)
+			    ((lora_Para_N *)ptr)->bit_t.power = 1;          
+			else 
+			    ((lora_Para_N *)ptr)->bit_t.power = 0;   
+			
+			//rate
+			((lora_Para_N *)ptr)->bit_t.rate = datebuf[2];
+			
+			//channel
+			((lora_Para_N *)ptr)->bit_t.channel = datebuf[3];
+
+			
+			*(ptr + sizeof(lora_Para_N)) = 8; //default
+			
+			*(ptr + sizeof(lora_Para_N) + sizeof(uint8_t)) = USER_INF_SETFLG_VALUE; //default
+			  
+			Uart0_Write("OK+1\r\n", 6);
+			
+			Nvram_WriteNv_Inf( USER_NVID_DEVINF_START, writebuff);		
+			
+			restart = TRUE;
+		}
+	}
+	else
+	{
+	  rx_buff_tailor = heard;
+	  return;
+	}
+	
+	rx_buff_tailor = heard;
+	
+	if( TRUE == restart )
+	{
+		HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);		
+	}
+}
+
+/*********************************************************************
+ * @fn      uart0_ReciveCallback
+ *
+ * @brief   Uart0 .
+ *
+ * @param   ...
+ *
+ * @return  none
+ */
+void uart0_ReciveCallback(UART_Handle handle, void *buf, size_t count)
+{
+    uint8_t tempcnt;
+	uint8_t *ptr;
+	uint8_t rxlen;
+	
+	ptr = (uint8_t *)buf;
+	rxlen = count;
+	if( rx_buff_header + rxlen >= RX_BUFF_SIZE )
+	{
+		tempcnt = RX_BUFF_SIZE - rx_buff_header; 
+		memcpy((void *)&user_RxBuff[rx_buff_header], ptr, tempcnt );
+		ptr += tempcnt;
+		tempcnt = rxlen - tempcnt;
+		rx_buff_header = 0;
+		memcpy( (void *)&user_RxBuff[rx_buff_header], ptr, tempcnt );
+		rx_buff_header += tempcnt;
+	}
+	else 
+	{
+		memcpy( (void *)&user_RxBuff[rx_buff_header], ptr, rxlen );
+		rx_buff_header += rxlen;
+	}
+	
+    UART_read(handle, buf, UART0_RECEIVE_BUFF_SIZE);
+	
+    Semaphore_post(sem);
+}
+#endif
 
 /*********************************************************************
 *********************************************************************/

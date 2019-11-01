@@ -28,6 +28,10 @@ extern "C"
 #define UART0_RECEIVE_BUFF_SIZE 1<<4
 #define RX_BUFF_SIZE 16
   
+#define DEFAULT_UART_AT_TEST_LEN              4
+#define DEFAULT_UART_AT_MAC_LEN               8   
+#define DEFAULT_UART_AT_CMD_LEN               10
+#define DEFAULT_UART_AT_RSP_LEN               6
 /*********************************************************************
  * MACROS
  */

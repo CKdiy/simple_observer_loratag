@@ -14,6 +14,8 @@
 
 #define USER_INF_BLOCK_SIZE   10
 
+#define USER_INF_SETFLG_VALUE 0xFE
+
 typedef struct
 {
     uint8_t NVid;

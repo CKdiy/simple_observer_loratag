@@ -36,13 +36,11 @@
  * TYPEDEFS
  */
 
-typedef uint8_t saddr_t ;
-
 /*********************************************************************
  * GLOBAL VARIABLES
  */
 
-static saddr_t dev_Saddr[LORA_SADDR_LEN];
+static uint8_t dev_Saddr[LORA_SADDR_LEN];
 /*********************************************************************
  * EXTERNAL VARIABLES
  */
@@ -61,7 +59,7 @@ loraRole_Status_t loraRole_Status;
  * LOCAL FUNCTIONS
  */
 
-static void loraRole_SaddrGet( saddr_t *mac_addr);
+//void loraRole_SaddrGet( uint8_t *mac_addr);
 bStatus_t loraRole_SetRFMode( uint8_t param);
 bStatus_t loraRole_GetRFMode( uint8_t *param);
 /*********************************************************************
@@ -277,7 +275,7 @@ bStatus_t loraRole_MacRecv(void)
   return ret; 
 }
 
-static void loraRole_SaddrGet( saddr_t *mac_addr)
+void loraRole_SaddrGet( uint8_t *mac_addr)
 {
 	uint32_t mac0 = HWREG(FCFG1_BASE + FCFG1_O_MAC_BLE_0);    
 	uint32_t mac1 = HWREG(FCFG1_BASE + FCFG1_O_MAC_BLE_1);    

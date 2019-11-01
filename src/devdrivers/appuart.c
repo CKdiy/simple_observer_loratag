@@ -14,6 +14,7 @@
 
 static UART_Handle   uartHandle;
 static uint8_t uart0RxBuff[UART0_RECEIVE_BUFF_SIZE];
+
 /*********************************************************************
  * @fn      Close_uart0
  *

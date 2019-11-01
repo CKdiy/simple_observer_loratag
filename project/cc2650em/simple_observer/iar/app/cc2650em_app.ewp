@@ -218,7 +218,7 @@
                     <state>HEAPMGR_SIZE=0</state>
                     <state>ICALL_MAX_NUM_ENTITIES=6</state>
                     <state>ICALL_MAX_NUM_TASKS=3</state>
-                    <state>POWER_SAVING</state>
+                    <state>xPOWER_SAVING</state>
                     <state>USE_ICALL</state>
                     <state>USE_RCOSC</state>
                     <state>IWDG_ENABLE</state>
