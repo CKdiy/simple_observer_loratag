@@ -151,7 +151,7 @@ void sx1278_Pin_OutLowPower(void)
 	delayMs(10);
 }
 
-bool sx1278_StatusPin_Enable(LoraRFStatusCB_t loraRFStatusCB)
+bool sx1278_StatusPin_Enable(LoraRFStatusCB_t loraRFStatusCB , uint8_t powerFlg)
 {
   	if(RFStatusPin)
    		PIN_close(RFStatusPin);
@@ -167,6 +167,11 @@ bool sx1278_StatusPin_Enable(LoraRFStatusCB_t loraRFStatusCB)
 #ifdef POWER_SAVING
   	PIN_setConfig(RFStatusPin, PINCC26XX_BM_WAKEUP, Board_SX1278_DIO0 | PINCC26XX_WAKEUP_POSEDGE);
 #endif
+	
+	if( powerFlg != NULL)  //@2-readme
+	{
+  	  PIN_setConfig(RFStatusPin, PINCC26XX_BM_WAKEUP, Board_SX1278_DIO0 | PINCC26XX_WAKEUP_POSEDGE);	
+	}
 	
   	// Set the application callback
   	appLoraRFStatusHandler = loraRFStatusCB;

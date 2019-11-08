@@ -41,7 +41,7 @@ uint8_t Read_sx1278Dio0_Pin(void);
 bool sx1278_Reset(void);
 void sx1278_Pin_OutLowPower(void);
 void sx1278_Pin_SetLowPower(void);
-bool sx1278_StatusPin_Enable(LoraRFStatusCB_t loraRFStatusCB);
+bool sx1278_StatusPin_Enable(LoraRFStatusCB_t loraRFStatusCB , uint8_t powerFlg);
 void sx1278_StatusPin_Disable(void);
 /*********************************************************************
 *********************************************************************/

@@ -157,7 +157,7 @@ bStatus_t loraRole_StartDevice(LoraRFStatusCB_t rfstatusCB, uint8_t *para)
   	{
   		sx1278_SetLoraPara( (LoRaSettings_t *)para );
 	
-		sx1278_StatusPin_Enable(rfstatusCB);
+		sx1278_StatusPin_Enable(rfstatusCB, TRUE);
 	
 		loraRole_Status.hw = LORA_HW_STATUS_OK;
 		

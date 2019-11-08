@@ -71,7 +71,7 @@ void MemsClose(void);
 void Clear_Mems_Interrupt(void);
 void MemsLowPwMode(void);
 void MemsLowPwMgr(void);
-bool Mems_ActivePin_Enable(MemsActiveCB_t memsActiveCB);
+bool Mems_ActivePin_Enable(MemsActiveCB_t memsActiveCB , uint8_t powerFlg);
 void Mems_ActivePin_Disable(void);
 /*********************************************************************
 *********************************************************************/

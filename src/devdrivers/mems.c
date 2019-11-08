@@ -135,7 +135,7 @@ void MemsClose(void)
 }
 
 /* Enable status-pin interrupt */
-bool Mems_ActivePin_Enable(MemsActiveCB_t memsActiveCB)
+bool Mems_ActivePin_Enable(MemsActiveCB_t memsActiveCB , uint8_t powerFlg)
 {
 	if(memsPinActive)
 		PIN_close(memsPinActive);
@@ -152,6 +152,11 @@ bool Mems_ActivePin_Enable(MemsActiveCB_t memsActiveCB)
   	PIN_setConfig(memsPinActive, PINCC26XX_BM_WAKEUP, Board_I2C_INT | PINCC26XX_WAKEUP_POSEDGE);
 #endif
 	
+	if( powerFlg != 0) //@2-readme
+	{
+  	  PIN_setConfig(memsPinActive, PINCC26XX_BM_WAKEUP, Board_I2C_INT | PINCC26XX_WAKEUP_POSEDGE);	
+	}
+	  
   	// Set the application callback
   	appMemsActiveHandler = memsActiveCB;
 	

@@ -406,7 +406,7 @@ void SimpleBLEObserver_init(void)
   	}
 #endif	
 	
-	Board_initKeys(SimpleBLEObserver_keyChangeHandler);
+	Board_initKeys(SimpleBLEObserver_keyChangeHandler, TRUE);
 	
   	loraRole_StartDevice(SimpleBLEObserver_loraStatusHandler, (uint8_t *)ptr);
   
@@ -998,7 +998,7 @@ static bool UserProcess_MemsInterrupt_Mgr( uint8_t status )
 	}
 	else
 	{
-		res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+		res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler, TRUE);
 		if(!res)
 		{
 			HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);							

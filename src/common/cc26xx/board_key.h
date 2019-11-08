@@ -95,7 +95,7 @@ typedef void (*keysPressedCB_t)(uint8_t keysPressed);
  *
  * @return  none
  */
-void Board_initKeys(keysPressedCB_t appKeyCB);
+void Board_initKeys(keysPressedCB_t appKeyCB, uint8_t powerFlg);
 void Board_ledCtrl(uint8_t status);
 /*********************************************************************
 *********************************************************************/

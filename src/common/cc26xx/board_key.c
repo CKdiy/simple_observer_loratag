@@ -135,7 +135,7 @@ PIN_Handle hLedPins;
  *
  * @return  none
  */
-void Board_initKeys(keysPressedCB_t appKeyCB)
+void Board_initKeys(keysPressedCB_t appKeyCB , uint8_t powerFlg)
 {
   // Initialize KEY pins. Enable int after callback registered
   hKeyPins = PIN_open(&keyPins, keyPinsCfg);
@@ -169,6 +169,11 @@ void Board_initKeys(keysPressedCB_t appKeyCB)
 #endif
   PIN_setConfig(hKeyPins, PINCC26XX_BM_WAKEUP, Board_KEY_SOS | PINCC26XX_WAKEUP_NEGEDGE);
 #endif //POWER_SAVING
+  
+  if( powerFlg != NULL)     //@2-readme
+  {
+	PIN_setConfig(hKeyPins, PINCC26XX_BM_WAKEUP, Board_KEY_SOS | PINCC26XX_WAKEUP_NEGEDGE);   
+  }
 
   // Setup keycallback for keys
   Util_constructClock(&keyChangeClock, Board_keyChangeHandler,
