@@ -1007,6 +1007,22 @@ static bool UserProcess_MemsInterrupt_Mgr( uint8_t status )
     return res;
 }
 
+static void UserProcess_LoraChannel_Change(void)
+{   
+    uint8_t   s_rand;
+	uint32_t  channel;
+	
+	s_rand = Clock_getTicks();
+	  
+	if( (s_rand % 2) == 0)
+//		channel = lora_channel_Table2[loraChannel_ID];
+	    channel  = 434000000;
+	else
+//		channel = lora_channel_Table1[loraChannel_ID];
+	    channel  = 438400000;
+	sx1278_SetRFChannel(channel);	
+}
+
 static bStatus_t UserProcess_LoraSend_Package(void)
 {
   bStatus_t ret = SUCCESS;
@@ -1066,6 +1082,8 @@ static bStatus_t UserProcess_LoraSend_Package(void)
   loraRole_GetRFMode(&res);
   if( LORA_RF_MODE_SLEEP == res)
 	loraRole_SetRFMode(LORA_RF_MODE_STANDBY);
+  
+  UserProcess_LoraChannel_Change();
   
   loraRole_MacSend(buf, payload_len + sizeof(payload_head));
    
