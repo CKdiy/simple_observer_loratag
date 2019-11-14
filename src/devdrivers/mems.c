@@ -81,23 +81,18 @@ bool MemsOpen(void)
 	
 	//ODR=125HZ
 	transBuf = 0x00;
-	Mems_WriteReg(0x10, transBuf);	
+	Mems_WriteReg(0x10, transBuf);			
+
+	//Enable step detect function
+	transBuf = 0xA2;
+	Mems_WriteReg(0x33, transBuf);
 	
-	//Set active_ths default:g_Rang +/-2g 
-	//threshold of active interrupt=Active_th*K(mg)
-	//K = 3.91(2g range)
-	//K = 7.81(4g range)
-	//K = 15.625(8g range)
-	//K = 31.25(16g range)
-	transBuf = 100;
-	Mems_WriteReg(0x28, transBuf);
+	//Enable step counter interrupt
+	transBuf = 0x01;
+	Mems_WriteReg(0x15, transBuf);	
 	
-	//Enable active interrupt
-	transBuf = 0x07;
-	Mems_WriteReg(0x16, transBuf);			
-	
-	//mapping active interrupt to INT1
-	transBuf = 0x04;
+	//Mapping step counter interrupt to INT1
+	transBuf = 0x02;
 	Mems_WriteReg(0x19, transBuf);	
 	
 	return TRUE;

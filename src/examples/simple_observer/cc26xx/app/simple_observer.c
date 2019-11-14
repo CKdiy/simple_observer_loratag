@@ -132,7 +132,7 @@
 #define SBO_SOS_CLEAR_TIMEOUT_EVT             0x0080  
 #define SBO_LORAUP_SLEEPMODE_PERIODIC_EVT     0x0100
 
-
+#define RCOSC_CALIBRATION_PERIOD_10ms         10
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_SOS_ALARM_PERIOD_16s            16000
@@ -550,17 +550,10 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			
 			Util_startClock(&loraUpClock_in_sleepmode);
 		}
-		else if( (MEMS_SLEEP == memsMgr.status ) && ( memsMgr.interval < 2) )
+		else if( MEMS_SLEEP == memsMgr.status  )
 		{	  
 			if( tick_differ < ACTIVE_TIME_OF_DURATION) //3s
-			    memsMgr.interval ++; 
-			else
-			    memsMgr.interval = 0;
-			
-			if( memsMgr.interval >= 2 )
-			{
-			    memsMgr.interval = 0;
-				
+			{			   				
 			    memsMgr.status = MEMS_ACTIVE;
 			
 			    Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);
@@ -675,6 +668,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 	  
     case SBO_MEMS_ACTIVE_EVT:
 	  memsMgr.old_tick = Clock_getTicks();
+	  Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_10ms);
 	  break;
 	  
     case SBO_LORA_STATUS_EVT: 
@@ -735,12 +729,15 @@ static void SimpleBLEObserver_handleKeys(uint8 shift, uint8 keys)
   if(keys & KEY_SOS)
   {
 	user_devinf.sos = 1;
-	
-	memsMgr.interval ++;
-	
+		
 	memsMgr.old_tick = Clock_getTicks();
 	
 	Util_restartClock(&sosClearTimeoutClock, RCOSC_SOS_ALARM_PERIOD_16s);
+	
+	if( MEMS_SLEEP == memsMgr.status )
+	{
+		Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_10ms);
+	}
   }  
 }
 
