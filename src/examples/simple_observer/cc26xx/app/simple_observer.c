@@ -217,7 +217,7 @@ static uint8_t user_RxBuff[RX_BUFF_SIZE];
 user_Devinf_t user_devinf;
 vbat_status_t user_vbat;
 //The UUID of the bluetooth beacon 
-//const uint8_t ibeaconUuid[6]={0x20,0x19,0x01,0x10,0x09,0x31};
+const uint8_t diyUuid[6]={0x20,0x19,0x01,0x10,0x09,0x31};
 const uint8_t ibeaconUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
 //const uint8_t ibeaconUuid[6]={0xAB,0x81,0x90,0xD5,0xD1,0x1E};
 /*********************************************************************
@@ -856,7 +856,10 @@ static void SimpleBLEObserver_addDeviceInfo(uint8 *pAddr, uint8 *pData, uint8 da
   uuidoffset = IBEACON_ADVUUID_OFFSET;
   
   if( memcmp(&ptr[uuidoffset], ibeaconUuid, sizeof(ibeaconUuid)) != 0)
-	return;  
+  {
+      if( memcmp(&ptr[uuidoffset], diyUuid, sizeof(diyUuid)) != 0) 
+          return;  
+  }
   
   scannum = scanRes;
   // If result count not at max
