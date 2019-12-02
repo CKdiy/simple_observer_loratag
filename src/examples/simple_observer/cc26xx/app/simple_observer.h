@@ -61,7 +61,7 @@ extern "C"
  * CONSTANTS
  */
 
-#define NOACTIVE_TIME_OF_DURATION       0x124F80  //12s ,systick = 10us
+#define NOACTIVE_TIME_OF_DURATION       0xB71B00  //2min ,systick = 10us
 #define ACTIVE_TIME_OF_DURATION         0x493E0   //3s
 #define COMPENSATOR_TICK_500ms          0xC350    //500ms
 
