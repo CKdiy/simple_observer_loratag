@@ -60,6 +60,8 @@ typedef struct
 	uint8_t   interval;
 	uint8_t   interruptE;
 	uint8_t   status;
+	uint8_t   index_new;
+	uint8_t   index_old;
 }memsmgr_t;
 
 /*********************************************************************

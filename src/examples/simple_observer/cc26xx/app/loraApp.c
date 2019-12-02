@@ -179,7 +179,7 @@ bStatus_t loraRole_StartDevice(LoraRFStatusCB_t rfstatusCB, uint8_t *para)
   return ret;
 }
 
-bStatus_t loraRole_MacSend( uint8_t *payload, uint8_t len)
+bStatus_t loraRole_MacSend( uint8_t *payload, uint8_t len, uint8_t status)
 {
   bStatus_t ret = SUCCESS;
   
@@ -202,6 +202,11 @@ bStatus_t loraRole_MacSend( uint8_t *payload, uint8_t len)
   payload_Head.bit_t.pkt_type = TYPE_LORA_BEACONINF_UP;
   payload_Head.bit_t.pkt_len  = len + LORA_SADDR_LEN;
   *ptr++ = payload_Head.payloadHead;
+  
+  if( status )
+  	dev_Saddr[0] |= 1<<7;
+  else
+	dev_Saddr[0] &= ~(1<<7);
   
   memcpy( ptr, dev_Saddr, LORA_SADDR_LEN);
   ptr+= LORA_SADDR_LEN;
@@ -260,8 +265,11 @@ bStatus_t loraRole_MacRecv(void)
   if( crc_and != *(ptr + index + sizeof(payloadHead_t) + payload_Head.bit_t.pkt_len) )
 	return FAILURE;
   
-  if( memcmp((void *)(ptr + index + sizeof(payloadHead_t)), dev_Saddr, LORA_SADDR_LEN) != 0)
-	return FAILURE;
+//  if( memcmp((void *)(ptr + index + sizeof(payloadHead_t)), dev_Saddr, LORA_SADDR_LEN) != 0)
+//	return FAILURE;
+  
+  if( memcmp((void *)(ptr + index + sizeof(payloadHead_t) + sizeof(uint8_t)), &dev_Saddr[1], LORA_SADDR_LEN - 1) != 0)
+	return FAILURE;  
 	  
   switch( payload_Head.bit_t.pkt_type )
   {

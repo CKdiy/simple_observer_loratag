@@ -137,7 +137,6 @@
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_SOS_ALARM_PERIOD_16s            16000
 #define RCOSC_LORAUP_SLEEPMODE_PERIOD_30min   1800000
-
 /*********************************************************************
  * TYPEDEFS
  */
@@ -420,6 +419,8 @@ void SimpleBLEObserver_init(void)
 	 memsMgr.old_tick = Clock_getTicks();
 	 memsMgr.new_tick = memsMgr.old_tick;
 	 memsMgr.interval = 0;
+	 memsMgr.index_new = 0;
+	 memsMgr.index_old = 0;
 	 UserProcess_MemsInterrupt_Mgr( ENABLE ); 
 	 MemsLowPwMgr();
   }
@@ -668,6 +669,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 	  
     case SBO_MEMS_ACTIVE_EVT:
 	  memsMgr.old_tick = Clock_getTicks();
+	  memsMgr.index_new ++;
 	  Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_10ms);
 	  break;
 	  
@@ -795,7 +797,8 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 		  if( scanTimetick == Lora_SEND_CYCLE )
 		  {
 		    scanTimetick = 0;
-
+			memsMgr.index_old = memsMgr.index_new;
+			memsMgr.index_new = 0;
 		    loraUpclockTimeout = loraRole_GetRand() * 200;
 		    Util_restartClock(&loraUpClock, loraUpclockTimeout);
 		  }
@@ -1088,7 +1091,12 @@ static bStatus_t UserProcess_LoraSend_Package(void)
   
   UserProcess_LoraChannel_Change();
   
-  loraRole_MacSend(buf, payload_len + sizeof(payload_head));
+  if(  memsMgr.index_old != 0)
+	res = 0;
+  else
+	res = 1;
+
+  loraRole_MacSend(buf, payload_len + sizeof(payload_head), res);
    
   user_devinf.acflag ++;
   if( user_devinf.acflag == 4)

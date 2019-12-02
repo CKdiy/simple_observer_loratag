@@ -91,7 +91,7 @@ typedef union
 bStatus_t loraRole_SetRFMode( uint8_t param);
 bStatus_t loraRole_GetRFMode( uint8_t *param);
 bStatus_t loraRole_StartDevice( LoraRFStatusCB_t rfstatusCB, uint8_t *para);
-bStatus_t loraRole_MacSend( uint8_t *payload, uint8_t len);
+bStatus_t loraRole_MacSend( uint8_t *payload, uint8_t len, uint8_t status);
 bStatus_t loraRole_MacRecv(void);
 void loraRole_SaddrGet( uint8_t *mac_addr);
 uint8_t loraRole_GetRand(void);
