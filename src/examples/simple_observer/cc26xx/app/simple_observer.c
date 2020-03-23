@@ -670,7 +670,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
     case SBO_MEMS_ACTIVE_EVT:
 	  memsMgr.old_tick = Clock_getTicks();
 	  memsMgr.index_new ++;
-	  Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_10ms);
+//	  Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_10ms);
 	  break;
 	  
     case SBO_LORA_STATUS_EVT: 
