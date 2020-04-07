@@ -288,12 +288,14 @@ void loraRole_SaddrGet( uint8_t *mac_addr)
 	uint32_t mac0 = HWREG(FCFG1_BASE + FCFG1_O_MAC_BLE_0);    
 	uint32_t mac1 = HWREG(FCFG1_BASE + FCFG1_O_MAC_BLE_1);    
    
-	*mac_addr++ = HI_UINT16(mac1);  
+	*mac_addr++ = HI_UINT16(mac1) & (~(1<<7));  
 	*mac_addr++ = LO_UINT16(mac1);  
 	*mac_addr++ = BREAK_UINT32(mac0, 3);  
 	*mac_addr++ = BREAK_UINT32(mac0, 2);  
 	*mac_addr++ = BREAK_UINT32(mac0, 1);  
 	*mac_addr++ = BREAK_UINT32(mac0, 0); 
+	
+	
 }
 
 static uint32_t s_rand;
