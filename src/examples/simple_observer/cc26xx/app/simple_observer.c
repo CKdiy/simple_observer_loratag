@@ -136,7 +136,7 @@
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_SOS_ALARM_PERIOD_16s            16000
-#define RCOSC_LORAUP_SLEEPMODE_PERIOD_30min   1800000
+#define RCOSC_LORAUP_SLEEPMODE_PERIOD_10min   600000
 /*********************************************************************
  * TYPEDEFS
  */
@@ -454,7 +454,7 @@ void SimpleBLEObserver_init(void)
   Util_constructClock(&sosClearTimeoutClock, SimpleBLEObserver_userClockHandler,
                           RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_SOS_CLEAR_TIMEOUT_EVT);  
   Util_constructClock(&loraUpClock_in_sleepmode, SimpleBLEObserver_userClockHandler,
-                          RCOSC_LORAUP_SLEEPMODE_PERIOD_30min, 0, false, SBO_LORAUP_SLEEPMODE_PERIODIC_EVT);  
+                          RCOSC_LORAUP_SLEEPMODE_PERIOD_10min, 0, false, SBO_LORAUP_SLEEPMODE_PERIODIC_EVT);  
   Util_startClock(&userProcessClock);
 }
 
