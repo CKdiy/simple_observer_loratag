@@ -270,8 +270,33 @@ static const gapObserverRoleCB_t simpleBLERoleCB =
  */
 
 #ifdef USE_RCOSC
+
+static uint8_t isEnabled = FALSE;
+
+// Clock instance for Calibration injections
+static Clock_Struct  injectCalibrationClock;
+
 // Power Notify Object for wake-up callbacks
 Power_NotifyObj injectCalibrationPowerNotifyObj;
+
+/*********************************************************************
+ * @fn      rcosc_injectCalibrationClockHandler
+ *
+ * @brief   Handler function for RCOSC clock timeouts.  Executes in
+ *          SWI context.
+ *
+ * @param   arg - event type
+ *
+ * @return  None.
+ */
+static void rcosc_injectCalibrationClockHandler(UArg arg)
+{
+  // Restart clock.
+  Util_startClock(&injectCalibrationClock);
+
+  // Inject calibration.
+  PowerCC26XX_injectCalibration();
+}
 
 /*********************************************************************
  * @fn      rcosc_injectCalibrationPostNotify
@@ -288,11 +313,15 @@ static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
                                                  uint32_t *clientArg)
 {
   // If clock is active at time of wake up,
-  if (!Util_isActive(&userProcessClock))
+  if (Util_isActive(&injectCalibrationClock))
   {
     // Stop injection of calibration - the wakeup has automatically done this.
-    Util_startClock(&userProcessClock);
+    Util_stopClock(&injectCalibrationClock);
   }
+
+  // Restart the clock in case delta between now and next wake up is greater
+  // than one second.
+  Util_startClock(&injectCalibrationClock);
 
   return Power_NOTIFYDONE;
 }
@@ -308,18 +337,22 @@ static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
  */
 void RCOSC_enableCalibration(void)
 {
-  uint8_t isEnabled = FALSE;
-  
   if (!isEnabled)
   {
     isEnabled = TRUE;
 
     // Set device's Sleep Clock Accuracy
     HCI_EXT_SetSCACmd(1000);
-
+	
+    // Create RCOSC clock - one-shot clock for calibration injections.
+    Util_constructClock(&injectCalibrationClock, rcosc_injectCalibrationClockHandler,
+                        RCOSC_CALIBRATION_PERIOD_1s, 0, false, 0);
+	
     // Receive callback when device wakes up from Standby Mode.
     Power_registerNotify(&injectCalibrationPowerNotifyObj, PowerCC26XX_AWAKE_STANDBY,
                          (Power_NotifyFxn)rcosc_injectCalibrationPostNotify, NULL);
+	
+	Util_startClock(&injectCalibrationClock);
   }
 } 
 #endif // USE_RCOSC 
@@ -413,23 +446,37 @@ void SimpleBLEObserver_init(void)
   		ICall_free(ptr);
   }
   
-  if( MemsOpen() )
-  {
-	 memsMgr.status = MEMS_ACTIVE;
-	 memsMgr.old_tick = Clock_getTicks();
-	 memsMgr.new_tick = memsMgr.old_tick;
-	 memsMgr.interval = 0;
-	 memsMgr.index_new = 0;
-	 memsMgr.index_old = 0;
-	 UserProcess_MemsInterrupt_Mgr( ENABLE ); 
-	 MemsLowPwMgr();
-  }
-  
   // Setup Observer Profile
   {
     uint8 scanRes = DEFAULT_MAX_SCAN_RES;
     GAPObserverRole_SetParameter(GAPOBSERVERROLE_MAX_SCAN_RES, sizeof(uint8_t),
                                  &scanRes );
+
+	if( MemsOpen() )
+	{
+	   memsMgr.status = MEMS_ACTIVE;
+	   memsMgr.old_tick = Clock_getTicks();
+	   memsMgr.new_tick = memsMgr.old_tick;
+	   memsMgr.interval = 0;
+	   memsMgr.index_new = 0;
+	   memsMgr.index_old = 0;
+	   UserProcess_MemsInterrupt_Mgr( ENABLE ); 
+	   MemsLowPwMgr();
+	}
+	
+	// Setup Observer Profile
+	{
+	  uint8 scanRes = DEFAULT_MAX_SCAN_RES;
+	  GAPObserverRole_SetParameter(GAPOBSERVERROLE_MAX_SCAN_RES, sizeof(uint8_t),
+								   &scanRes );
+	}
+	
+	// Setup GAP
+	GAP_SetParamValue(TGAP_GEN_DISC_SCAN, bleScanTiming);
+	GAP_SetParamValue(TGAP_LIM_DISC_SCAN, bleScanTiming);
+
+	// Start the Device
+	VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
   }
 
   // Setup GAP
