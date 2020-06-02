@@ -250,7 +250,6 @@ void SimpleBLEObserver_memsActiveHandler(uint8 pins);
 void SimpleBLEObserver_loraStatusHandler(uint8 pins);
 static void UserProcess_Vbat_Check(void);
 static bStatus_t UserProcess_LoraSend_Package(void);
-static void led_Flash(void);
 int userInf_Get( uint8_t* userbuf);
 
 #ifndef DEMO
@@ -591,7 +590,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			}
 			else
 			{
-			    led_Flash();
+			    led_Flash(50);							
 			}
 		}
 		else if( ( MEMS_ACTIVE == memsMgr.status ) && ( tick_differ >= NOACTIVE_TIME_OF_DURATION ))
@@ -745,7 +744,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 		  
 		  loraRole_SetRFMode( LORA_RF_MODE_SLEEP );	
 		  
-		  led_Flash();
+		  led_Flash(50);
 		}
 	  }
 	  break;
@@ -975,7 +974,6 @@ void SimpleBLEObserver_loraStatusHandler(uint8 pins)
   Semaphore_post(sem);
 }
 
-
 static void SimpleBLEObserver_userClockHandler(UArg arg)
 {
   // Store the event.
@@ -1171,16 +1169,6 @@ static void UserProcess_Vbat_Check(void)
   
   if( user_vbat == VBAT_ALARM)
 	user_devinf.vbat = 1;
-}
-
-//Can only be invoked after  Global_interrupt enable
-static void led_Flash(void)
-{
-  Board_ledCtrl( Board_LED_ON );
-		  
-  delayMs(50);
-		  
-  Board_ledCtrl( Board_LED_OFF );
 }
 
 int userInf_Get( uint8_t* userbuf)

@@ -64,7 +64,7 @@
 #include "util.h"
 #include "board_key.h"
 #include "board.h"
-
+#include "delay.h"
 /*********************************************************************
  * TYPEDEFS
  */
@@ -73,6 +73,7 @@
  * LOCAL FUNCTIONS
  */
 static void Board_keyChangeHandler(UArg a0);
+static void Board_ledFlashHandler(UArg a0);
 static void Board_keyCallback(PIN_Handle hPin, PIN_Id pinId);
 
 /*******************************************************************************
@@ -88,6 +89,7 @@ static uint8_t keysPressed;
 
 // Key debounce clock
 static Clock_Struct keyChangeClock;
+static Clock_Struct ledFlashClock;
 
 // Pointer to application callback
 keysPressedCB_t appKeyChangeHandler = NULL;
@@ -178,6 +180,9 @@ void Board_initKeys(keysPressedCB_t appKeyCB , uint8_t powerFlg)
   // Setup keycallback for keys
   Util_constructClock(&keyChangeClock, Board_keyChangeHandler,
                       KEY_DEBOUNCE_TIMEOUT, 0, false, 0);
+  
+  Util_constructClock(&ledFlashClock, Board_ledFlashHandler,
+                      LED_FLASH_TIMEOUT, 0, false, 0);
 
   // Set the application callback
   appKeyChangeHandler = appKeyCB;
@@ -236,6 +241,10 @@ static void Board_keyCallback(PIN_Handle hPin, PIN_Id pinId)
   if ( PIN_getInputValue(Board_KEY_SOS) == 0 )
   {
     keysPressed |= KEY_SOS;
+	
+    Board_ledCtrl(Board_LED_ON);
+	
+	Util_startClock(&ledFlashClock);
   }
   Util_startClock(&keyChangeClock);
 }
@@ -258,6 +267,11 @@ static void Board_keyChangeHandler(UArg a0)
   }
 }
 
+static void Board_ledFlashHandler(UArg a0)
+{
+	Board_ledCtrl(Board_LED_OFF);
+}
+
 /*********************************************************************
  * @fn      Board_LedCtrl
  *
@@ -273,6 +287,16 @@ void Board_ledCtrl(uint8_t status)
 		PIN_setOutputValue(hLedPins, Board_DK_LED0, 1);
 	else
 	  	PIN_setOutputValue(hLedPins, Board_DK_LED0, 0);
+}
+
+//Can only be invoked after  Global_interrupt enable
+void led_Flash(uint16_t time)
+{
+  Board_ledCtrl( Board_LED_ON );
+		  
+  delayMs(time);
+		  
+  Board_ledCtrl( Board_LED_OFF );
 }
 /*********************************************************************
 *********************************************************************/
