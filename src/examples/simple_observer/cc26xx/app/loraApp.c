@@ -94,6 +94,8 @@ bStatus_t loraRole_SetRFMode( uint8_t param)
 		    break;
 
 	      case LORA_RF_MODE_SLEEP:
+			sx1278_SetStandby();
+			sx1278DelayMs();
 		    sx1278_SetSleep();
 			sx1278_Pin_SetLowPower();
 		    break;

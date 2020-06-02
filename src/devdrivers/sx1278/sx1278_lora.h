@@ -141,6 +141,7 @@ void *sx1278_ReadRxPkt(uint8_t *size);
 void sx1278_TxDoneCallback(void);
 void sx1278_SetSleep(void);
 void sx1278_SetStandby(void);
+void sx1278DelayMs(void);
 #ifdef __cplusplus
 }
 #endif

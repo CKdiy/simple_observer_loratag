@@ -124,15 +124,17 @@
 // Internal Events for RTOS application
 #define SBO_KEY_CHANGE_EVT                    0x0001
 #define SBO_STATE_CHANGE_EVT                  0x0002
-#define SBP_OBSERVER_PERIODIC_EVT             0x0004
-#define SBO_MEMS_ACTIVE_EVT                   0x0008
-#define SBO_LORA_STATUS_EVT                   0x0010
-#define SBO_LORA_UP_PERIODIC_EVT              0x0020
-#define SBO_LORA_RX_TIMEOUT_EVT               0x0040
-#define SBO_SOS_CLEAR_TIMEOUT_EVT             0x0080  
-#define SBO_LORAUP_SLEEPMODE_PERIODIC_EVT     0x0100
+#define SBO_MEMS_ACTIVE_EVT                   0x0004
+#define SBO_LORA_STATUS_EVT                   0x0008
+
+#define SBP_OBSERVER_PERIODIC_EVT             0x0001
+#define SBP_LORA_UP_PERIODIC_EVT              0x0002
+#define SBP_LORA_RX_TIMEOUT_EVT               0x0004
+#define SBP_SOS_CLEAR_TIMEOUT_EVT             0x0008  
+#define SBP_LORAUP_SLEEPMODE_PERIODIC_EVT     0x0010
 
 #define RCOSC_CALIBRATION_PERIOD_10ms         10
+#define RCOSC_LORA_RX_TIMEOUT_100ms           100
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_SOS_ALARM_PERIOD_16s            16000
@@ -494,14 +496,15 @@ void SimpleBLEObserver_init(void)
                           RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBP_OBSERVER_PERIODIC_EVT);
   
   Util_constructClock(&loraUpClock, SimpleBLEObserver_userClockHandler,
-                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_LORA_UP_PERIODIC_EVT);
+                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBP_LORA_UP_PERIODIC_EVT);
   
   Util_constructClock(&loraRXTimeoutClock, SimpleBLEObserver_userClockHandler,
-                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_LORA_RX_TIMEOUT_EVT);
+                          RCOSC_LORA_RX_TIMEOUT_100ms, 0, false, SBP_LORA_RX_TIMEOUT_EVT);
+
   Util_constructClock(&sosClearTimeoutClock, SimpleBLEObserver_userClockHandler,
-                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBO_SOS_CLEAR_TIMEOUT_EVT);  
+                          RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBP_SOS_CLEAR_TIMEOUT_EVT);  
   Util_constructClock(&loraUpClock_in_sleepmode, SimpleBLEObserver_userClockHandler,
-                          RCOSC_LORAUP_SLEEPMODE_PERIOD_10min, 0, false, SBO_LORAUP_SLEEPMODE_PERIODIC_EVT);  
+                          RCOSC_LORAUP_SLEEPMODE_PERIOD_10min, 0, false, SBP_LORAUP_SLEEPMODE_PERIODIC_EVT);  
   Util_startClock(&userProcessClock);
 }
 
@@ -516,6 +519,7 @@ void SimpleBLEObserver_init(void)
  */
 static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 {
+  uint8_t res = 0;
   // Initialize application
   SimpleBLEObserver_init();
 
@@ -631,30 +635,33 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		SimpleBLEPeripheral_uart0Task();	
 #endif	
 	
-	if( events & SBO_LORA_UP_PERIODIC_EVT )
+	if( events & SBP_LORA_UP_PERIODIC_EVT )
 	{
-	  events &= ~SBO_LORA_UP_PERIODIC_EVT;
+	  events &= ~SBP_LORA_UP_PERIODIC_EVT;
 	  
 	  UserProcess_Vbat_Check();
 	  
 	  if( user_vbat != VBAT_LOW )	  
 	    UserProcess_LoraSend_Package();
 	}	
-	else if( events & SBO_LORA_RX_TIMEOUT_EVT )
+	else if( events & SBP_LORA_RX_TIMEOUT_EVT )
 	{
-	  events &= ~SBO_LORA_RX_TIMEOUT_EVT;
+	  events &= ~SBP_LORA_RX_TIMEOUT_EVT;
 	  
-	  loraRole_SetRFMode( LORA_RF_MODE_SLEEP );
+	  loraRole_GetRFMode(&res);
+	  
+	  if(res != LORA_RF_MODE_TX)
+	  		loraRole_SetRFMode( LORA_RF_MODE_SLEEP );
 	}
-	else if( events & SBO_SOS_CLEAR_TIMEOUT_EVT )
+	else if( events & SBP_SOS_CLEAR_TIMEOUT_EVT )
 	{
-	  events &= ~SBO_SOS_CLEAR_TIMEOUT_EVT;
+	  events &= ~SBP_SOS_CLEAR_TIMEOUT_EVT;
 	  
 	  user_devinf.sos = 0;
 	}
-	else if( events & SBO_LORAUP_SLEEPMODE_PERIODIC_EVT )
+	else if( events & SBP_LORAUP_SLEEPMODE_PERIODIC_EVT )
 	{
-	  events &= ~SBO_LORAUP_SLEEPMODE_PERIODIC_EVT;
+	  events &= ~SBP_LORAUP_SLEEPMODE_PERIODIC_EVT;
 	  
 	  GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                       DEFAULT_DISCOVERY_ACTIVE_SCAN,
