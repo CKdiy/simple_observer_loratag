@@ -139,6 +139,8 @@
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_SOS_ALARM_PERIOD_16s            16000
 #define RCOSC_LORAUP_SLEEPMODE_PERIOD_10min   600000
+
+#define USER_VBAT_CHECK_TICK_DEFAULT          300
 /*********************************************************************
  * TYPEDEFS
  */
@@ -209,6 +211,7 @@ static Clock_Struct loraUpClock;
 static Clock_Struct loraRXTimeoutClock;
 static Clock_Struct sosClearTimeoutClock;
 static Clock_Struct loraUpClock_in_sleepmode;
+static Clock_Struct lowPowerResetTimeTick;
 
 #ifndef DEMO
 volatile uint8_t rx_buff_header,rx_buff_tailor;
@@ -216,7 +219,10 @@ static uint8_t user_RxBuff[RX_BUFF_SIZE];
 #endif
 
 user_Devinf_t user_devinf;
-vbat_status_t user_vbat;
+
+vbat_status_t user_vbat,check_vbat;
+static uint16_t vbatcheck_tick;
+
 //The UUID of the bluetooth beacon 
 const uint8_t diyUuid[6]={0x20,0x19,0x01,0x10,0x09,0x31};
 const uint8_t ibeaconUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
@@ -243,6 +249,7 @@ void SimpleBLEObserver_initKeys(void);
 
 void SimpleBLEObserver_keyChangeHandler(uint8 keys);
 static void SimpleBLEObserver_userClockHandler(UArg arg);
+static void SimpleBLEObserver_resetHandler(UArg arg);
 
 static uint8_t sort_ibeaconInf_By_Rssi(void);
 static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
@@ -503,7 +510,16 @@ void SimpleBLEObserver_init(void)
   Util_constructClock(&sosClearTimeoutClock, SimpleBLEObserver_userClockHandler,
                           RCOSC_CALIBRATION_PERIOD_1s, 0, false, SBP_SOS_CLEAR_TIMEOUT_EVT);  
   Util_constructClock(&loraUpClock_in_sleepmode, SimpleBLEObserver_userClockHandler,
-                          RCOSC_LORAUP_SLEEPMODE_PERIOD_10min, 0, false, SBP_LORAUP_SLEEPMODE_PERIODIC_EVT);  
+                          RCOSC_LORAUP_SLEEPMODE_PERIOD_10min, 0, false, SBP_LORAUP_SLEEPMODE_PERIODIC_EVT);
+  
+  Util_constructClock(&lowPowerResetTimeTick, SimpleBLEObserver_resetHandler,
+                          RCOSC_LORAUP_SLEEPMODE_PERIOD_10min, 0, false, 0);
+
+  delayMs(20);
+  UserProcess_Vbat_Check();
+  check_vbat = user_vbat;
+  vbatcheck_tick = 0;
+  
   Util_startClock(&userProcessClock);
 }
 
@@ -573,56 +589,82 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		  
 		events &= ~SBP_OBSERVER_PERIODIC_EVT;
 		
-		memsMgr.new_tick = Clock_getTicks();
-		
-		tick_differ = memsMgr.new_tick - memsMgr.old_tick;
-		
-		if( (  MEMS_ACTIVE == memsMgr.status ) && ( tick_differ < NOACTIVE_TIME_OF_DURATION ) ) 
+		if( VBAT_LOW != user_vbat )
 		{
-		    if( VBAT_LOW != user_vbat )
-			{
-		  		// Perform periodic application task
+			memsMgr.new_tick = Clock_getTicks();
+			
+			tick_differ = memsMgr.new_tick - memsMgr.old_tick;
+			
+			if( (  MEMS_ACTIVE == memsMgr.status ) && ( tick_differ < NOACTIVE_TIME_OF_DURATION ) ) 
+			{		    	
+				// Perform periodic application task
 				GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                                DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                                DEFAULT_DISCOVERY_WHITE_LIST );	
+								                DEFAULT_DISCOVERY_ACTIVE_SCAN,
+								                DEFAULT_DISCOVERY_WHITE_LIST );	
 			
-				Util_startClock(&userProcessClock);
+				Util_startClock(&userProcessClock);			
+			}
+			else if( ( MEMS_ACTIVE == memsMgr.status ) && ( tick_differ >= NOACTIVE_TIME_OF_DURATION ))
+			{
+				memsMgr.status = MEMS_SLEEP;	
+				
+				Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_3s);	
+				
+				Util_startClock(&loraUpClock_in_sleepmode);
+			}
+			else if( MEMS_SLEEP == memsMgr.status  )
+			{	  
+				if( tick_differ < ACTIVE_TIME_OF_DURATION) //3s
+				{			   				
+					memsMgr.status = MEMS_ACTIVE;
+				
+					Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);
+					
+					if( Util_isActive( &loraUpClock_in_sleepmode ) )
+						Util_stopClock(&loraUpClock_in_sleepmode);
+					
+					memsMgr.old_tick = memsMgr.new_tick + COMPENSATOR_TICK_500ms;
+				}
+				else
+				{
+					Util_startClock(&userProcessClock);
+				}
 			}
 			else
 			{
-			    led_Flash(50);							
-			}
-		}
-		else if( ( MEMS_ACTIVE == memsMgr.status ) && ( tick_differ >= NOACTIVE_TIME_OF_DURATION ))
-		{
-			memsMgr.status = MEMS_SLEEP;	
-			
-			Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_3s);	
-			
-			Util_startClock(&loraUpClock_in_sleepmode);
-		}
-		else if( MEMS_SLEEP == memsMgr.status  )
-		{	  
-			if( tick_differ < ACTIVE_TIME_OF_DURATION) //3s
-			{			   				
-			    memsMgr.status = MEMS_ACTIVE;
-			
-			    Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);
-				
-			    if( Util_isActive( &loraUpClock_in_sleepmode ) )
-			        Util_stopClock(&loraUpClock_in_sleepmode);
-				
-			    memsMgr.old_tick = memsMgr.new_tick + COMPENSATOR_TICK_500ms;
-			}
-			else
-			{
-			    Util_startClock(&userProcessClock);
+				memsMgr.interval = 0;
 			}
 		}
 		else
 		{
-			memsMgr.interval = 0;
+			led_Flash(400);
+			Util_startClock(&userProcessClock);
+			
+			if(!Util_isActive(&lowPowerResetTimeTick))
+				Util_startClock(&lowPowerResetTimeTick);  
 		}
+
+		/*************Vbat check***********/
+		vbatcheck_tick ++;
+		if(vbatcheck_tick >= USER_VBAT_CHECK_TICK_DEFAULT)
+		{
+			loraRole_GetRFMode(&res);
+	  
+	 		if(res != LORA_RF_MODE_TX)
+			{
+			  	vbatcheck_tick = 0;
+				
+	  			UserProcess_Vbat_Check();
+				
+				if((check_vbat != user_vbat) && (user_vbat == VBAT_LOW))
+				{
+					Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);	
+				}
+
+				check_vbat = user_vbat;	
+			}
+		}
+		/***************END***************/
 	}
 
 #ifdef IWDG_ENABLE 
@@ -637,8 +679,6 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	if( events & SBP_LORA_UP_PERIODIC_EVT )
 	{
 	  events &= ~SBP_LORA_UP_PERIODIC_EVT;
-	  
-	  UserProcess_Vbat_Check();
 	  
 	  if( user_vbat != VBAT_LOW )	  
 	    UserProcess_LoraSend_Package();
@@ -983,6 +1023,12 @@ static void SimpleBLEObserver_userClockHandler(UArg arg)
   Semaphore_post(sem);
   
   PowerCC26XX_injectCalibration(); 
+}
+
+static void SimpleBLEObserver_resetHandler(UArg arg)
+{
+	/* reset or enter into  ABNORMAL_MODE*/
+	HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);	
 }
 
 /*********************************************************************
