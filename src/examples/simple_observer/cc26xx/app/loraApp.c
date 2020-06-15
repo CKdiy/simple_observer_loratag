@@ -312,7 +312,7 @@ uint8_t loraRole_GetRand(void)
 	srand(s_rand);
 	res = rand() + 1;	
 	s_rand = ((res << 8) | (res >> 8)) >> 16;
-	seed =  s_rand % 20; 
+	seed =  s_rand % 18; 
 	  
     return seed;
 }
