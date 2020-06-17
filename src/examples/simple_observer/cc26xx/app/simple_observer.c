@@ -454,23 +454,23 @@ void SimpleBLEObserver_init(void)
   		ICall_free(ptr);
   }
   
+  if( MemsOpen() )
+  {
+	  memsMgr.status = MEMS_ACTIVE;
+	  memsMgr.old_tick = Clock_getTicks();
+	  memsMgr.new_tick = memsMgr.old_tick;
+	  memsMgr.interval = 0;
+	  memsMgr.index_new = 0;
+	  memsMgr.index_old = 0;
+	  UserProcess_MemsInterrupt_Mgr( ENABLE ); 
+	  MemsLowPwMgr();
+  }
+  
   // Setup Observer Profile
   {
     uint8 scanRes = DEFAULT_MAX_SCAN_RES;
     GAPObserverRole_SetParameter(GAPOBSERVERROLE_MAX_SCAN_RES, sizeof(uint8_t),
                                  &scanRes );
-
-	if( MemsOpen() )
-	{
-	   memsMgr.status = MEMS_ACTIVE;
-	   memsMgr.old_tick = Clock_getTicks();
-	   memsMgr.new_tick = memsMgr.old_tick;
-	   memsMgr.interval = 0;
-	   memsMgr.index_new = 0;
-	   memsMgr.index_old = 0;
-	   UserProcess_MemsInterrupt_Mgr( ENABLE ); 
-	   MemsLowPwMgr();
-	}
 	
 	// Setup Observer Profile
 	{
@@ -486,13 +486,6 @@ void SimpleBLEObserver_init(void)
 	// Start the Device
 	VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
   }
-
-  // Setup GAP
-  GAP_SetParamValue(TGAP_GEN_DISC_SCAN, bleScanTiming);
-  GAP_SetParamValue(TGAP_LIM_DISC_SCAN, bleScanTiming);
-
-  // Start the Device
-  VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
   
 #ifdef USE_RCOSC
 	RCOSC_enableCalibration();
@@ -519,6 +512,8 @@ void SimpleBLEObserver_init(void)
   UserProcess_Vbat_Check();
   check_vbat = user_vbat;
   vbatcheck_tick = 0;
+  if(VBAT_LOW == user_vbat)
+  	Util_startClock(&lowPowerResetTimeTick); 
   
   Util_startClock(&userProcessClock);
 }
@@ -638,10 +633,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		else
 		{
 			led_Flash(400);
-			Util_startClock(&userProcessClock);
-			
-			if(!Util_isActive(&lowPowerResetTimeTick))
-				Util_startClock(&lowPowerResetTimeTick);  
+			Util_startClock(&userProcessClock);		 
 		}
 
 		/*************Vbat check***********/
@@ -824,14 +816,17 @@ static void SimpleBLEObserver_handleKeys(uint8 shift, uint8 keys)
   if(keys & KEY_SOS)
   {
 	user_devinf.sos = 1;
-		
-	memsMgr.old_tick = Clock_getTicks();
 	
-	Util_restartClock(&sosClearTimeoutClock, RCOSC_SOS_ALARM_PERIOD_16s);
-	
-	if( MEMS_SLEEP == memsMgr.status )
+	if(VBAT_LOW != user_vbat)
 	{
-		Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_10ms);
+		memsMgr.old_tick = Clock_getTicks();
+		
+		Util_restartClock(&sosClearTimeoutClock, RCOSC_SOS_ALARM_PERIOD_16s);
+		
+		if(MEMS_SLEEP == memsMgr.status)
+		{
+			Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_10ms);
+		}		
 	}
   }  
 }
@@ -851,7 +846,8 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
   {
     case GAP_DEVICE_INIT_DONE_EVENT:
       {
-		GAPObserverRole_StartDiscovery(DEFAULT_DISCOVERY_MODE,
+		if(VBAT_LOW != user_vbat)
+			GAPObserverRole_StartDiscovery(DEFAULT_DISCOVERY_MODE,
 									   DEFAULT_DISCOVERY_ACTIVE_SCAN,
 									   DEFAULT_DISCOVERY_WHITE_LIST);
       }
@@ -875,7 +871,7 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 		   scanTimetick ++;	
 		  
 		   GAPObserverRole_CancelDiscovery();
-		  
+
 		   scanResultList[scanResult_write].timertick = scanTimetick;
 		   scanResultList[scanResult_write].numdevs = sort_ibeaconInf_By_Rssi();
 		   memcpy( &scanResultList[scanResult_write].bleinfbuff, ibeaconInfList, 
