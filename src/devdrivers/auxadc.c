@@ -57,9 +57,9 @@ vbat_status_t adc_OneShot_Read(void)
 	  
 	vbat =(res/4095)*43;
 	
-	if((vbat <= 370) && (vbat > 360))
+	if((vbat <= 379) && (vbat > 373))
 	  return VBAT_ALARM;
-	else if(vbat <= 360)
+	else if(vbat <= 373)
 	  return VBAT_LOW;
 		
     return VBAT_NORMAL;
