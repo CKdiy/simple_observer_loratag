@@ -428,22 +428,14 @@ void SimpleBLEObserver_init(void)
   	ptr = (LoRaSettings_t *)ICall_malloc(sizeof(LoRaSettings_t));
 	
   	userInf_Get((uint8_t *)ptr);
-	
-#ifdef DEMO          //@1-readme  
-  	Power_releaseConstraint(PowerCC26XX_SB_DISALLOW);
-  	Power_releaseConstraint(PowerCC26XX_IDLE_PD_DISALLOW);  
-#else
+	 
+#ifndef DEMO
   	if( atFlg != USER_INF_SETFLG_VALUE )
 	{
 	    rx_buff_header = 0;   
 	    rx_buff_tailor = 0;	  
 	    Open_uart0( uart0_ReciveCallback );
 	}
-  	else
-  	{
-	    Power_releaseConstraint(PowerCC26XX_SB_DISALLOW);
-	    Power_releaseConstraint(PowerCC26XX_IDLE_PD_DISALLOW);     
-  	}
 #endif	
 	
 	Board_initKeys(SimpleBLEObserver_keyChangeHandler, TRUE);

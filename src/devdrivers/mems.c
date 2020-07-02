@@ -146,12 +146,7 @@ bool Mems_ActivePin_Enable(MemsActiveCB_t memsActiveCB , uint8_t powerFlg)
 #ifdef POWER_SAVING
   	PIN_setConfig(memsPinActive, PINCC26XX_BM_WAKEUP, Board_I2C_INT | PINCC26XX_WAKEUP_POSEDGE);
 #endif
-	
-	if( powerFlg != 0) //@2-readme
-	{
-  	  PIN_setConfig(memsPinActive, PINCC26XX_BM_WAKEUP, Board_I2C_INT | PINCC26XX_WAKEUP_POSEDGE);	
-	}
-	  
+        
   	// Set the application callback
   	appMemsActiveHandler = memsActiveCB;
 	
