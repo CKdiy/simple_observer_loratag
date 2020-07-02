@@ -664,8 +664,18 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	{
 	  events &= ~SBP_LORA_UP_PERIODIC_EVT;
 	  
-	  if( user_vbat != VBAT_LOW )	  
+	  if( user_vbat != VBAT_LOW )
+          {
 	    UserProcess_LoraSend_Package();
+            
+            while(!Read_sx1278Dio0_Pin());
+            
+            sx1278_TxDoneCallback();
+            
+            loraRole_SetRFMode(LORA_RF_MODE_RX);
+            
+            Util_startClock(&loraRXTimeoutClock);
+          }
 	}	
 	else if( events & SBP_LORA_RX_TIMEOUT_EVT )
 	{
@@ -752,15 +762,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 	  
     case SBO_LORA_STATUS_EVT: 
 	  loraRole_GetRFMode(&res);
-	  if( LORA_RF_MODE_TX == res )
-	  {
-		sx1278_TxDoneCallback();
-		
-		loraRole_SetRFMode( LORA_RF_MODE_RX );
-		
-		Util_startClock(&loraRXTimeoutClock);
-	  }
-	  else if(LORA_RF_MODE_RX == res)
+	  if(LORA_RF_MODE_RX == res)
 	  {
 	  	if( !loraRole_MacRecv() )
 		{

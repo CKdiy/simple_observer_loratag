@@ -37,7 +37,7 @@ bool Open_sx1278_SPI(void);
 bool sx1278_SPI_Read(const uint8_t *rxbuf, size_t rxlen);
 bool sx1278_SPI_Write(const uint8_t *txbuf, size_t txlen); 
 void sx1278_SPI_CSN(bool enable);
-uint8_t Read_sx1278Dio0_Pin(void);
+int Read_sx1278Dio0_Pin(void);
 bool sx1278_Reset(void);
 void sx1278_Pin_OutLowPower(void);
 void sx1278_Pin_SetLowPower(void);

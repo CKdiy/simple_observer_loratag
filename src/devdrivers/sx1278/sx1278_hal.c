@@ -204,7 +204,7 @@ static void Board_sx1278LoraStatusCallback(PIN_Handle hPin, PIN_Id pinId)
  *
  * @return Pin status 
  */
-uint8_t Read_sx1278Dio0_Pin(void)
+int Read_sx1278Dio0_Pin(void)
 {
     return PIN_getInputValue(Board_SX1278_DIO0);
 }
