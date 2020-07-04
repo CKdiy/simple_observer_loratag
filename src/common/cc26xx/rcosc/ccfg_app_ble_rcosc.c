@@ -134,12 +134,12 @@
 #endif
 
 #ifndef SET_CCFG_MODE_CONF_VDDR_CAP
-#define SET_CCFG_MODE_CONF_VDDR_CAP                     0x3A       // Unsigned 8-bit integer representing the min. decoupling capacitance on VDDR in units of 100nF
+#define SET_CCFG_MODE_CONF_VDDR_CAP                     0x00       // Unsigned 8-bit integer representing the min. decoupling capacitance on VDDR in units of 100nF
 #endif
 
 #ifndef SET_CCFG_MODE_CONF_VDDR_TRIM_SLEEP_TC
-//#define SET_CCFG_MODE_CONF_VDDR_TRIM_SLEEP_TC           0x1        // Temperature compensation on VDDR sleep trim disabled (default)
- #define SET_CCFG_MODE_CONF_VDDR_TRIM_SLEEP_TC        0x0        // Temperature compensation on VDDR sleep trim enabled
+#define SET_CCFG_MODE_CONF_VDDR_TRIM_SLEEP_TC           0x1        // Temperature compensation on VDDR sleep trim disabled (default)
+// #define SET_CCFG_MODE_CONF_VDDR_TRIM_SLEEP_TC        0x0        // Temperature compensation on VDDR sleep trim enabled
 #endif
 
 //#####################################
