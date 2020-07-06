@@ -9,10 +9,10 @@
 #define __RELEASE_H__
 
 #define SW_VER_MAJOR            0
-#define SW_VER_MINOR            1
+#define SW_VER_MINOR            0
 
 /* for release code, patch must be 0 */
-#define SW_VER_PATCH            1
+#define SW_VER_PATCH            5
 
 
 #define SW_BUILD_STR            __TIME__" "__DATE__
