@@ -125,18 +125,20 @@
 #define SBO_KEY_CHANGE_EVT                    0x0001
 #define SBO_STATE_CHANGE_EVT                  0x0002
 #define SBO_MEMS_ACTIVE_EVT                   0x0004
-#define SBO_LORA_STATUS_EVT                   0x0008
+#define SBO_LORA_STATUS_EVT                   0x0008 
 
 #define SBP_OBSERVER_PERIODIC_EVT             0x0001
 #define SBP_LORA_UP_PERIODIC_EVT              0x0002
 #define SBP_LORA_RX_TIMEOUT_EVT               0x0004
 #define SBP_SOS_CLEAR_TIMEOUT_EVT             0x0008  
 #define SBP_LORAUP_SLEEPMODE_PERIODIC_EVT     0x0010
+#define SBP_USBE_PERIODIC_EVT                 0x0020
 
 #define RCOSC_CALIBRATION_PERIOD_10ms         10
 #define RCOSC_LORA_RX_TIMEOUT_100ms           100
 #define RCOSC_CALIBRATION_PERIOD_1s           1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
+#define RCOSC_CALIBRATION_PERIOD_10s          10000
 #define RCOSC_SOS_ALARM_PERIOD_16s            16000
 #define RCOSC_LORAUP_SLEEPMODE_PERIOD_10min   600000
 
@@ -201,6 +203,7 @@ uint16_t bleScanTiming;
 //mems
 static memsmgr_t memsMgr;
 
+static uint8_t usb_status = 0;   //1-usb exist 0
 // Scan result list
 static gapDevRec_t devList[DEFAULT_MAX_SCAN_RES];
 static ibeaconInf_t ibeaconInfList[DEFAULT_MAX_SCAN_RES + 1];
@@ -211,7 +214,7 @@ static Clock_Struct loraUpClock;
 static Clock_Struct loraRXTimeoutClock;
 static Clock_Struct sosClearTimeoutClock;
 static Clock_Struct loraUpClock_in_sleepmode;
-static Clock_Struct lowPowerResetTimeTick;
+static Clock_Struct usb_clock;
 
 #ifndef DEMO
 volatile uint8_t rx_buff_header,rx_buff_tailor;
@@ -248,8 +251,8 @@ static uint8_t SimpleBLEObserver_enqueueMsg(uint8_t event, uint8_t status,
 void SimpleBLEObserver_initKeys(void);
 
 void SimpleBLEObserver_keyChangeHandler(uint8 keys);
+
 static void SimpleBLEObserver_userClockHandler(UArg arg);
-static void SimpleBLEObserver_resetHandler(UArg arg);
 
 static uint8_t sort_ibeaconInf_By_Rssi(void);
 static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
@@ -258,6 +261,7 @@ void SimpleBLEObserver_loraStatusHandler(uint8 pins);
 static void UserProcess_Vbat_Check(void);
 static bStatus_t UserProcess_LoraSend_Package(void);
 int userInf_Get( uint8_t* userbuf);
+uint8_t app_ReadUsbPin(void);
 
 #ifndef DEMO
 void uart0_ReciveCallback(UART_Handle handle, void *buf, size_t count);
@@ -422,7 +426,9 @@ void SimpleBLEObserver_init(void)
 #endif
   
   Nvram_Init();
-	
+  
+  Board_initKeys(SimpleBLEObserver_keyChangeHandler, TRUE);
+  
   //Get important system parameters
   {
   	ptr = (LoRaSettings_t *)ICall_malloc(sizeof(LoRaSettings_t));
@@ -431,14 +437,20 @@ void SimpleBLEObserver_init(void)
 	 
 #ifndef DEMO
   	if( atFlg != USER_INF_SETFLG_VALUE )
-	{
-	    rx_buff_header = 0;   
+        {  
+            rx_buff_header = 0;   
 	    rx_buff_tailor = 0;	  
 	    Open_uart0( uart0_ReciveCallback );
 	}
+        else
+        {
+          usb_InitPin();   
+          usb_status = app_ReadUsbPin();
+        }
+#else
+        usb_InitPin();
+        usb_status = app_ReadUsbPin();
 #endif	
-	
-	Board_initKeys(SimpleBLEObserver_keyChangeHandler, TRUE);
 	
   	loraRole_StartDevice(SimpleBLEObserver_loraStatusHandler, (uint8_t *)ptr);
   
@@ -446,37 +458,44 @@ void SimpleBLEObserver_init(void)
   		ICall_free(ptr);
   }
   
-  if( MemsOpen() )
+  if(!usb_status)
   {
-	  memsMgr.status = MEMS_ACTIVE;
-	  memsMgr.old_tick = Clock_getTicks();
-	  memsMgr.new_tick = memsMgr.old_tick;
-	  memsMgr.interval = 0;
-	  memsMgr.index_new = 0;
-	  memsMgr.index_old = 0;
-	  UserProcess_MemsInterrupt_Mgr( ENABLE ); 
-	  MemsLowPwMgr();
-  }
-  
-  // Setup Observer Profile
-  {
-    uint8 scanRes = DEFAULT_MAX_SCAN_RES;
-    GAPObserverRole_SetParameter(GAPOBSERVERROLE_MAX_SCAN_RES, sizeof(uint8_t),
-                                 &scanRes );
-	
-	// Setup Observer Profile
-	{
-	  uint8 scanRes = DEFAULT_MAX_SCAN_RES;
-	  GAPObserverRole_SetParameter(GAPOBSERVERROLE_MAX_SCAN_RES, sizeof(uint8_t),
-								   &scanRes );
-	}
-	
-	// Setup GAP
-	GAP_SetParamValue(TGAP_GEN_DISC_SCAN, bleScanTiming);
-	GAP_SetParamValue(TGAP_LIM_DISC_SCAN, bleScanTiming);
+    if( MemsOpen() )
+    {
+            memsMgr.status = MEMS_ACTIVE;
+            memsMgr.old_tick = Clock_getTicks();
+            memsMgr.new_tick = memsMgr.old_tick;
+            memsMgr.interval = 0;
+            memsMgr.index_new = 0;
+            memsMgr.index_old = 0;
+            UserProcess_MemsInterrupt_Mgr( ENABLE ); 
+            MemsLowPwMgr();
+    }
+    
+    // Setup Observer Profile
+    {
+      uint8 scanRes = DEFAULT_MAX_SCAN_RES;
+      GAPObserverRole_SetParameter(GAPOBSERVERROLE_MAX_SCAN_RES, sizeof(uint8_t),
+                                   &scanRes );
+          
+          // Setup Observer Profile
+          {
+            uint8 scanRes = DEFAULT_MAX_SCAN_RES;
+            GAPObserverRole_SetParameter(GAPOBSERVERROLE_MAX_SCAN_RES, sizeof(uint8_t),
+                                                                     &scanRes );
+          }
+          
+          // Setup GAP
+          GAP_SetParamValue(TGAP_GEN_DISC_SCAN, bleScanTiming);
+          GAP_SetParamValue(TGAP_LIM_DISC_SCAN, bleScanTiming);
 
-	// Start the Device
-	VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
+          // Start the Device
+          VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
+    }
+    
+    UserProcess_Vbat_Check();
+    check_vbat = user_vbat;
+    vbatcheck_tick = 0;
   }
   
 #ifdef USE_RCOSC
@@ -497,17 +516,13 @@ void SimpleBLEObserver_init(void)
   Util_constructClock(&loraUpClock_in_sleepmode, SimpleBLEObserver_userClockHandler,
                           RCOSC_LORAUP_SLEEPMODE_PERIOD_10min, 0, false, SBP_LORAUP_SLEEPMODE_PERIODIC_EVT);
   
-  Util_constructClock(&lowPowerResetTimeTick, SimpleBLEObserver_resetHandler,
-                          RCOSC_LORAUP_SLEEPMODE_PERIOD_10min, 0, false, 0);
+  Util_constructClock(&usb_clock, SimpleBLEObserver_userClockHandler,
+                          RCOSC_CALIBRATION_PERIOD_10s, 0, false, SBP_USBE_PERIODIC_EVT);
 
-  delayMs(20);
-  UserProcess_Vbat_Check();
-  check_vbat = user_vbat;
-  vbatcheck_tick = 0;
-  if(VBAT_LOW == user_vbat)
-  	Util_startClock(&lowPowerResetTimeTick); 
-  
-  Util_startClock(&userProcessClock);
+  if(usb_status)
+    Util_startClock(&usb_clock);
+  else
+    Util_startClock(&userProcessClock);
 }
 
 /*********************************************************************
@@ -572,84 +587,89 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	
 	if (events & SBP_OBSERVER_PERIODIC_EVT)
 	{	
-		uint32_t tick_differ = 0;
-		  
-		events &= ~SBP_OBSERVER_PERIODIC_EVT;
-		
-		if( VBAT_LOW != user_vbat )
-		{
-			memsMgr.new_tick = Clock_getTicks();
-			
-			tick_differ = memsMgr.new_tick - memsMgr.old_tick;
-			
-			if( (  MEMS_ACTIVE == memsMgr.status ) && ( tick_differ < NOACTIVE_TIME_OF_DURATION ) ) 
-			{		    	
-				// Perform periodic application task
-				GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-								                DEFAULT_DISCOVERY_ACTIVE_SCAN,
-								                DEFAULT_DISCOVERY_WHITE_LIST );	
-			
-				Util_startClock(&userProcessClock);			
-			}
-			else if( ( MEMS_ACTIVE == memsMgr.status ) && ( tick_differ >= NOACTIVE_TIME_OF_DURATION ))
-			{
-				memsMgr.status = MEMS_SLEEP;	
-				
-				Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_3s);	
-				
-				Util_startClock(&loraUpClock_in_sleepmode);
-			}
-			else if( MEMS_SLEEP == memsMgr.status  )
-			{	  
-				if( tick_differ < ACTIVE_TIME_OF_DURATION) //3s
-				{			   				
-					memsMgr.status = MEMS_ACTIVE;
-				
-					Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);
-					
-					if( Util_isActive( &loraUpClock_in_sleepmode ) )
-						Util_stopClock(&loraUpClock_in_sleepmode);
-					
-					memsMgr.old_tick = memsMgr.new_tick + COMPENSATOR_TICK_500ms;
-				}
-				else
-				{
-					Util_startClock(&userProcessClock);
-				}
-			}
-			else
-			{
-				memsMgr.interval = 0;
-			}
-		}
-		else
-		{
-			led_Flash(400);
-			Util_startClock(&userProcessClock);		 
-		}
+            uint32_t tick_differ = 0;
+              
+            events &= ~SBP_OBSERVER_PERIODIC_EVT;
+            
+            if( VBAT_LOW != user_vbat )
+            {
+                    memsMgr.new_tick = Clock_getTicks();
+                    
+                    tick_differ = memsMgr.new_tick - memsMgr.old_tick;
+                    
+                    if( (  MEMS_ACTIVE == memsMgr.status ) && ( tick_differ < NOACTIVE_TIME_OF_DURATION ) ) 
+                    {		    	
+                            // Perform periodic application task
+                            GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                                                            DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                                                            DEFAULT_DISCOVERY_WHITE_LIST );	
+                    
+                            Util_startClock(&userProcessClock);			
+                    }
+                    else if( ( MEMS_ACTIVE == memsMgr.status ) && ( tick_differ >= NOACTIVE_TIME_OF_DURATION ))
+                    {
+                            memsMgr.status = MEMS_SLEEP;	
+                            
+                            Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_3s);	
+                            
+                            Util_startClock(&loraUpClock_in_sleepmode);
+                    }
+                    else if( MEMS_SLEEP == memsMgr.status  )
+                    {	  
+                            if( tick_differ < ACTIVE_TIME_OF_DURATION) //3s
+                            {			   				
+                                    memsMgr.status = MEMS_ACTIVE;
+                            
+                                    Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);
+                                    
+                                    if( Util_isActive( &loraUpClock_in_sleepmode ) )
+                                            Util_stopClock(&loraUpClock_in_sleepmode);
+                                    
+                                    memsMgr.old_tick = memsMgr.new_tick + COMPENSATOR_TICK_500ms;
+                            }
+                            else
+                            {
+                                    Util_startClock(&userProcessClock);
+                            }
+                    }
+                    else
+                    {
+                            memsMgr.interval = 0;
+                    }
+            }
+            else
+            {
+                    led_Flash(400);
+                    Util_startClock(&userProcessClock);		 
+            }
 
-		/*************Vbat check***********/
-		vbatcheck_tick ++;
-		if(vbatcheck_tick >= USER_VBAT_CHECK_TICK_DEFAULT)
-		{
-			loraRole_GetRFMode(&res);
-	  
-	 		if(res != LORA_RF_MODE_TX)
-			{
-			  	vbatcheck_tick = 0;
-				
-	  			UserProcess_Vbat_Check();
-				
-				if((check_vbat != user_vbat) && (user_vbat == VBAT_LOW))
-				{
-					Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);	
-				}
+            /*************Vbat check***********/
+            vbatcheck_tick ++;
+            if(vbatcheck_tick >= USER_VBAT_CHECK_TICK_DEFAULT)
+            {
+                    loraRole_GetRFMode(&res);
+      
+                    if(res != LORA_RF_MODE_TX)
+                    {
+                            vbatcheck_tick = 0;
+                            
+                            UserProcess_Vbat_Check();
+                            
+                            if((check_vbat != user_vbat) && (user_vbat == VBAT_LOW))
+                            {
+                                    Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);	
+                            }
 
-				check_vbat = user_vbat;	
-			}
-		}
-		/***************END***************/
-	}
+                            check_vbat = user_vbat;	
+                    }
+            }
+            else if(vbatcheck_tick%30 == 0)
+            {
+                if(app_ReadUsbPin())
+                  HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);  
+            }
+            /***************END***************/   
+        }
 
 #ifdef IWDG_ENABLE 
 	wdtClear();
@@ -704,6 +724,15 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	  
 	  Util_startClock(&loraUpClock_in_sleepmode);
 	}
+        else if(events & SBP_USBE_PERIODIC_EVT)
+        {
+          events &= ~SBP_USBE_PERIODIC_EVT;
+          
+          if(!app_ReadUsbPin())
+              HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
+          else
+              Util_startClock(&usb_clock);
+        }          
   }
 }
 
@@ -1013,12 +1042,6 @@ static void SimpleBLEObserver_userClockHandler(UArg arg)
   Semaphore_post(sem);
   
   PowerCC26XX_injectCalibration(); 
-}
-
-static void SimpleBLEObserver_resetHandler(UArg arg)
-{
-	/* reset or enter into  ABNORMAL_MODE*/
-	HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);	
 }
 
 /*********************************************************************
@@ -1428,5 +1451,20 @@ void uart0_ReciveCallback(UART_Handle handle, void *buf, size_t count)
 }
 #endif
 
+uint8_t app_ReadUsbPin(void)
+{
+  uint8_t res = 0;
+  
+  Board_ledCtrl(Board_LED_ON);
+  
+  delayMs(10);
+  
+  if(read_UsbPin())
+    res = 1;
+  
+  Board_ledCtrl(Board_LED_OFF);
+  
+  return res;
+}
 /*********************************************************************
 *********************************************************************/
