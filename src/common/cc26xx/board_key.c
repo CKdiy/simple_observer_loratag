@@ -75,7 +75,6 @@
 static void Board_keyChangeHandler(UArg a0);
 static void Board_ledFlashHandler(UArg a0);
 static void Board_keyCallback(PIN_Handle hPin, PIN_Id pinId);
-
 /*******************************************************************************
  * EXTERNAL VARIABLES
  */
@@ -116,7 +115,13 @@ PIN_Config keyPinsCfg[] =
 
 PIN_Config LedPinsCfg[] =
 {
-	Board_DK_LED0       | PIN_GPIO_OUTPUT_EN   | PIN_INPUT_DIS |  PIN_GPIO_LOW  |  PIN_PULLUP,    
+	Board_DK_LED0       | PIN_GPIO_OUTPUT_EN   | PIN_INPUT_DIS |  PIN_GPIO_LOW  |  PIN_PULLUP,
+	PIN_TERMINATE
+};
+
+PIN_Config UsbPinsCfg[] =
+{
+	Board_USB_PIN       | PIN_GPIO_OUTPUT_DIS   | PIN_INPUT_EN | PIN_NOPULL, 
 	PIN_TERMINATE
 };
 
@@ -125,6 +130,9 @@ PIN_Handle hKeyPins;
 
 PIN_State  LedPins;
 PIN_Handle hLedPins;
+
+PIN_State  UsbPin;
+PIN_Handle hUsbPin;
 /*********************************************************************
  * PUBLIC FUNCTIONS
  */
@@ -292,6 +300,16 @@ void led_Flash(uint16_t time)
   delayMs(time);
 		  
   Board_ledCtrl( Board_LED_OFF );
+}
+
+void usb_InitPin(void)
+{  
+    hUsbPin = PIN_open(&UsbPin, UsbPinsCfg);
+}
+
+int read_UsbPin(void)
+{
+    return PIN_getInputValue(Board_USB_PIN);
 }
 /*********************************************************************
 *********************************************************************/

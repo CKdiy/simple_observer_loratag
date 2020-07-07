@@ -78,7 +78,6 @@ extern "C" {
  * TYPEDEFS
  */
 typedef void (*keysPressedCB_t)(uint8_t keysPressed);
-
 /*********************************************************************
  * MACROS
  */
@@ -99,6 +98,9 @@ typedef void (*keysPressedCB_t)(uint8_t keysPressed);
 void Board_initKeys(keysPressedCB_t appKeyCB, uint8_t powerFlg);
 void Board_ledCtrl(uint8_t status);
 void led_Flash(uint16_t time);
+
+void usb_InitPin(void);
+int read_UsbPin(void);
 /*********************************************************************
 *********************************************************************/
 
