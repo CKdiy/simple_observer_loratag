@@ -143,6 +143,7 @@
 #define RCOSC_LORAUP_SLEEPMODE_PERIOD_10min   600000
 
 #define USER_VBAT_CHECK_TICK_DEFAULT          300
+#define USER_SYS_RESTART_TICK_DEFAULT         12  //3600s
 /*********************************************************************
  * TYPEDEFS
  */
@@ -225,6 +226,7 @@ user_Devinf_t user_devinf;
 
 vbat_status_t user_vbat,check_vbat;
 static uint16_t vbatcheck_tick;
+static uint8_t  sys_restart_tick;
 
 //The UUID of the bluetooth beacon 
 const uint8_t diyUuid[6]={0x20,0x19,0x01,0x10,0x09,0x31};
@@ -523,6 +525,8 @@ void SimpleBLEObserver_init(void)
     Util_startClock(&usb_clock);
   else
     Util_startClock(&userProcessClock);
+  
+  sys_restart_tick = 0;
 }
 
 /*********************************************************************
@@ -647,10 +651,15 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
             vbatcheck_tick ++;
             if(vbatcheck_tick >= USER_VBAT_CHECK_TICK_DEFAULT)
             {
+                    sys_restart_tick ++;
+                    
                     loraRole_GetRFMode(&res);
-      
+                    
                     if(res != LORA_RF_MODE_TX)
                     {
+                            if(sys_restart_tick >= USER_SYS_RESTART_TICK_DEFAULT)
+                                HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
+                            
                             vbatcheck_tick = 0;
                             
                             UserProcess_Vbat_Check();
@@ -660,7 +669,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
                                     Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_1s);	
                             }
 
-                            check_vbat = user_vbat;	
+                            check_vbat = user_vbat;                                                   
                     }
             }
             else if(vbatcheck_tick%30 == 0)
