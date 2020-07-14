@@ -72,13 +72,13 @@ extern "C" {
 
 // Debounce timeout in milliseconds
 #define KEY_DEBOUNCE_TIMEOUT  200
-#define LED_FLASH_TIMEOUT     200   
+#define LED_FLASH_TIMEOUT     100   
 
 /*********************************************************************
  * TYPEDEFS
  */
 typedef void (*keysPressedCB_t)(uint8_t keysPressed);
-/*********************************************************************
+/******************** *************************************************
  * MACROS
  */
 
@@ -99,8 +99,8 @@ void Board_initKeys(keysPressedCB_t appKeyCB, uint8_t powerFlg);
 void Board_ledCtrl(uint8_t status);
 void led_Flash(uint16_t time);
 
-void usb_InitPin(void);
-int read_UsbPin(void);
+void led_InitPin(void);
+char read_UsbPin(void);
 /*********************************************************************
 *********************************************************************/
 

@@ -263,7 +263,6 @@ void SimpleBLEObserver_loraStatusHandler(uint8 pins);
 static void UserProcess_Vbat_Check(void);
 static bStatus_t UserProcess_LoraSend_Package(void);
 int userInf_Get( uint8_t* userbuf);
-uint8_t app_ReadUsbPin(void);
 
 #ifndef DEMO
 void uart0_ReciveCallback(UART_Handle handle, void *buf, size_t count);
@@ -446,12 +445,12 @@ void SimpleBLEObserver_init(void)
 	}
         else
         {
-          usb_InitPin();   
-          usb_status = app_ReadUsbPin();
+          led_InitPin();   
+          usb_status = read_UsbPin();
         }
 #else
-        usb_InitPin();
-        usb_status = app_ReadUsbPin();
+        led_InitPin();
+        usb_status = read_UsbPin();
 #endif	
 	
   	loraRole_StartDevice(SimpleBLEObserver_loraStatusHandler, (uint8_t *)ptr);
@@ -674,7 +673,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
             }
             else if(vbatcheck_tick%30 == 0)
             {
-                if(app_ReadUsbPin())
+                if(read_UsbPin())
                   HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);  
             }
             /***************END***************/   
@@ -737,7 +736,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
         {
           events &= ~SBP_USBE_PERIODIC_EVT;
           
-          if(!app_ReadUsbPin())
+          if(!read_UsbPin())
               HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
           else
               Util_startClock(&usb_clock);
@@ -1460,20 +1459,5 @@ void uart0_ReciveCallback(UART_Handle handle, void *buf, size_t count)
 }
 #endif
 
-uint8_t app_ReadUsbPin(void)
-{
-  uint8_t res = 0;
-  
-  Board_ledCtrl(Board_LED_ON);
-  
-  delayMs(10);
-  
-  if(read_UsbPin())
-    res = 1;
-  
-  Board_ledCtrl(Board_LED_OFF);
-  
-  return res;
-}
 /*********************************************************************
 *********************************************************************/

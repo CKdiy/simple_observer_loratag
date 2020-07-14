@@ -115,13 +115,13 @@ PIN_Config keyPinsCfg[] =
 
 PIN_Config LedPinsCfg[] =
 {
-	Board_DK_LED0       | PIN_GPIO_OUTPUT_EN   | PIN_INPUT_DIS |  PIN_GPIO_LOW  |  PIN_PULLUP,
+	Board_DK_LED0  | PIN_GPIO_OUTPUT_EN  | PIN_INPUT_DIS |  PIN_GPIO_LOW  |  PIN_PULLUP,
 	PIN_TERMINATE
 };
 
 PIN_Config UsbPinsCfg[] =
 {
-	Board_USB_PIN       | PIN_GPIO_OUTPUT_DIS   | PIN_INPUT_EN | PIN_NOPULL, 
+	Board_USB_PIN  | PIN_GPIO_OUTPUT_EN  | PIN_INPUT_DIS | PIN_GPIO_LOW   | PIN_PULLUP,
 	PIN_TERMINATE
 };
 
@@ -150,7 +150,6 @@ void Board_initKeys(keysPressedCB_t appKeyCB , uint8_t powerFlg)
   // Initialize KEY pins. Enable int after callback registered
   hKeyPins = PIN_open(&keyPins, keyPinsCfg);
   PIN_registerIntCb(hKeyPins, Board_keyCallback);
-  hLedPins = PIN_open(&LedPins, LedPinsCfg);
 
 #if defined (CC2650_LAUNCHXL) || defined (CC1350_LAUNCHXL)
   PIN_setConfig(hKeyPins, PIN_BM_IRQ, Board_BTN1        | PIN_IRQ_NEGEDGE);
@@ -246,8 +245,8 @@ static void Board_keyCallback(PIN_Handle hPin, PIN_Id pinId)
     keysPressed |= KEY_SOS;
 	
     Board_ledCtrl(Board_LED_ON);
-	
-	Util_startClock(&ledFlashClock);
+    	
+    Util_startClock(&ledFlashClock);
   }
   Util_startClock(&keyChangeClock);
 }
@@ -272,7 +271,7 @@ static void Board_keyChangeHandler(UArg a0)
 
 static void Board_ledFlashHandler(UArg a0)
 {
-	Board_ledCtrl(Board_LED_OFF);
+    Board_ledCtrl(Board_LED_OFF);
 }
 
 /*********************************************************************
@@ -302,14 +301,44 @@ void led_Flash(uint16_t time)
   Board_ledCtrl( Board_LED_OFF );
 }
 
-void usb_InitPin(void)
+void led_InitPin(void)
 {  
+    hLedPins = PIN_open(&LedPins, LedPinsCfg); 
+    
     hUsbPin = PIN_open(&UsbPin, UsbPinsCfg);
 }
 
-int read_UsbPin(void)
+char read_UsbPin(void)
 {
-    return PIN_getInputValue(Board_USB_PIN);
+    int status = 0;
+    
+    PIN_close(hUsbPin);
+    
+    UsbPinsCfg[0] = Board_USB_PIN | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN |  PIN_NOPULL;
+    
+    hUsbPin = PIN_open(&UsbPin, UsbPinsCfg);
+    
+    delayMs(5);
+    
+    Board_ledCtrl(Board_LED_ON);
+        
+    delayMs(10);
+    
+    status =  PIN_getInputValue(Board_USB_PIN);
+    
+    Board_ledCtrl(Board_LED_OFF);
+    
+    PIN_close(hUsbPin);
+    
+    UsbPinsCfg[0] = Board_USB_PIN | PIN_GPIO_OUTPUT_EN  | PIN_INPUT_DIS | PIN_GPIO_LOW | PIN_PULLUP;
+    
+    hUsbPin = PIN_open(&UsbPin, UsbPinsCfg);    
+       
+    if(status)
+      return 1;
+
+      return 0;
 }
+
 /*********************************************************************
 *********************************************************************/
