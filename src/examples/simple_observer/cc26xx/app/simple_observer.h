@@ -79,6 +79,7 @@ typedef struct
   uint8_t  mems;     //Active flag
   uint8_t  sos;      //sos
   uint8_t  acflag;   //Anti - collision flag
+  uint8_t  bat;
 }user_Devinf_t;
 /*********************************************************************
  * FUNCTIONS

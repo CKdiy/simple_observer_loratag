@@ -228,6 +228,8 @@ vbat_status_t user_vbat,check_vbat;
 static uint16_t vbatcheck_tick;
 static uint8_t  sys_restart_tick;
 
+static bool up_vbat_flg = FALSE;
+
 //The UUID of the bluetooth beacon 
 const uint8_t diyUuid[6]={0x20,0x19,0x01,0x10,0x09,0x31};
 const uint8_t ibeaconUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
@@ -260,7 +262,6 @@ static uint8_t sort_ibeaconInf_By_Rssi(void);
 static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
 void SimpleBLEObserver_memsActiveHandler(uint8 pins);
 void SimpleBLEObserver_loraStatusHandler(uint8 pins);
-static void UserProcess_Vbat_Check(void);
 static bStatus_t UserProcess_LoraSend_Package(void);
 int userInf_Get( uint8_t* userbuf);
 
@@ -495,7 +496,7 @@ void SimpleBLEObserver_init(void)
           VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
     }
     
-    UserProcess_Vbat_Check();
+    user_vbat = adc_OneShot_Read(&user_devinf.bat);
     check_vbat = user_vbat;
     vbatcheck_tick = 0;
   }
@@ -662,7 +663,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
                             
                             vbatcheck_tick = 0;
                             
-                            UserProcess_Vbat_Check();
+                            user_vbat = adc_OneShot_Read(&user_devinf.bat);
+
+                            up_vbat_flg = TRUE;
                             
                             if((check_vbat != user_vbat) && (user_vbat == VBAT_LOW))
                             {
@@ -1186,11 +1189,25 @@ static bStatus_t UserProcess_LoraSend_Package(void)
   payload_head |= user_devinf.sos    << 14;
   payload_head |= user_devinf.acflag << 12;
   
-  buf = (uint8_t *)ICall_malloc(payload_len + sizeof(payload_head));
+  if(up_vbat_flg)
+  {
+      buf = (uint8_t *)ICall_malloc(payload_len + sizeof(payload_head) + sizeof(uint8_t));
+      payload_len += sizeof(uint8_t);
+  }
+  else
+    buf = (uint8_t *)ICall_malloc(payload_len + sizeof(payload_head));
+  
   if( buf == NULL)
     return FAILURE;
   
   ptr = buf;
+  
+  if(up_vbat_flg)
+  {
+      *ptr = 0;
+      *ptr |= user_devinf.bat; 
+      ptr++;
+  }
   
   *ptr++ = payload_head >> 8;
   *ptr++ = payload_head & 0xFF;
@@ -1215,6 +1232,14 @@ static bStatus_t UserProcess_LoraSend_Package(void)
 	loraRole_SetRFMode(LORA_RF_MODE_STANDBY);
   
   UserProcess_LoraChannel_Change();
+   
+  if(up_vbat_flg)
+  {
+    res = 1;
+    up_vbat_flg = FALSE;
+  }
+  else
+    res = 0;
   
   loraRole_MacSend(buf, payload_len + sizeof(payload_head), res);
    
@@ -1229,14 +1254,6 @@ static bStatus_t UserProcess_LoraSend_Package(void)
   ICall_free(buf);
 	
   return ret;
-}
-
-static void UserProcess_Vbat_Check(void)
-{
-  user_vbat = adc_OneShot_Read();
-  
-  if( user_vbat == VBAT_ALARM)
-	user_devinf.vbat = 1;
 }
 
 int userInf_Get( uint8_t* userbuf)

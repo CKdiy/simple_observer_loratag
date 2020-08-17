@@ -22,7 +22,7 @@ static void usDelay(volatile uint16_t delay);
  *
  * @return  none
  */
-vbat_status_t adc_OneShot_Read(void)
+vbat_status_t adc_OneShot_Read(uint8_t *grad)
 {
 	uint32_t turnedOnClocks = 0;
 	uint32_t adcValue = 0;
@@ -55,12 +55,17 @@ vbat_status_t adc_OneShot_Read(void)
 	
 	res = (float)adcValue;
 	  
-	vbat =(res/4095)*43;
+	vbat =(res/4095)*43 + 6;
 	
-	if((vbat <= 379) && (vbat > 373))
-	  return VBAT_ALARM;
-	else if(vbat <= 373)
-	  return VBAT_LOW;
+    if(vbat < 373)   
+        return VBAT_LOW;
+    else
+    {
+        *grad =((uint16_t)vbat - 373)/5;
+
+        if(*grad > 7)
+          *grad = 7;
+    }
 		
     return VBAT_NORMAL;
 }
