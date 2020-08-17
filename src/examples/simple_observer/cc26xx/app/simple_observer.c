@@ -469,6 +469,7 @@ void SimpleBLEObserver_init(void)
             memsMgr.interval = 0;
             memsMgr.index_new = 0;
             memsMgr.index_old = 0;
+            user_devinf.mems = 0;
             UserProcess_MemsInterrupt_Mgr( ENABLE ); 
             MemsLowPwMgr();
     }
@@ -1176,7 +1177,12 @@ static bStatus_t UserProcess_LoraSend_Package(void)
       read_temp = 0;
   }
   
-  payload_head |= user_devinf.vbat   << 15;
+  if(memsMgr.index_old != 0)
+	user_devinf.mems = 0;
+  else
+	user_devinf.mems = 1;
+  
+  payload_head |= user_devinf.mems   << 15;
   payload_head |= user_devinf.sos    << 14;
   payload_head |= user_devinf.acflag << 12;
   
@@ -1210,11 +1216,6 @@ static bStatus_t UserProcess_LoraSend_Package(void)
   
   UserProcess_LoraChannel_Change();
   
-  if(  memsMgr.index_old != 0)
-	res = 0;
-  else
-	res = 1;
-
   loraRole_MacSend(buf, payload_len + sizeof(payload_head), res);
    
   user_devinf.acflag ++;

@@ -76,7 +76,7 @@ extern "C"
  */
 typedef struct  
 {
-  uint8_t  vbat;     //Low voltage alarm
+  uint8_t  mems;     //Active flag
   uint8_t  sos;      //sos
   uint8_t  acflag;   //Anti - collision flag
 }user_Devinf_t;
